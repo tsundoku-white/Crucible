@@ -5,7 +5,7 @@ what is it...
 well it's a vulkan rendering "game engine" its for like project i would like to 
 rendering like 2D & 3D.
 
-![Screenshot] (docs/screen_shot.png)
+![Screenshot](docs/screen_shot.png)
 
 ## What have i done?
 
