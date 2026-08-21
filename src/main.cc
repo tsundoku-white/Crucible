@@ -12,10 +12,10 @@ int main()
   // init rendering code with vulkan
   IRenderer render{};
 
-  ECS ecs;
+  Register reg;
 
-  Entity e = ecs.create_entity();
-  ecs.add_component<Transform>(e, Transform {.x = 10, .y = 20} );
+  Entity e = reg.create_entity();
+  reg.add<Transform>(e, Transform {.x = 10, .y = 20} );
 
   float time = 0.f;
   while (!render.should_close())

@@ -3,152 +3,136 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <print>
+#include <strings.h>
+#include <utility>
 #include <vector>
-#include <limits>
 
-using EntityID    = std::uint64_t;
-using ComponentID = std::uint8_t;
+using EntityID = std::uint64_t; 
 
-constexpr EntityID NULL_ENTITY_ID = std::numeric_limits<EntityID>::max();
+constexpr EntityID NULL_ENTITY_ID = std::numeric_limits<EntityID>::max(); 
 
-struct Entity
+struct Entity 
 {
   explicit Entity(EntityID id) : m_id(id) {}
 
-  EntityID id()      const { return m_id;                   }
-  bool     is_null() const { return m_id == NULL_ENTITY_ID; }
+  EntityID get_id() const { return m_id; }
+  bool is_null()    const { return m_id == NULL_ENTITY_ID; }
+  bool is_static()  const { return m_static; }
 
   private:
   EntityID m_id;
+  bool m_static = false;
 };
 
-template<typename T>
-class ComponentPool 
+template <typename T>
+class IPool 
 {
   public:
-    T& insert(EntityID id, T component)
+    T& insert_component(Entity &entity, T component)
     {
-      // check dup
-      if (has(id))
-        return  get(id);
+      if (has_component(entity.get_id()))
+      {
+        return get_component(get_component(entity.get_id()));
+        std::print("id exists: id {}", entity.get_id());
+      }
+      if (get_component(entity.get_id()) > m_sparse.size())
+        m_sparse.resize(entity.get_id() + 1, INVALID_INDEX);
 
-      // grows the m_sparse container to fit the component
-      if (id >= m_sparse.size())
-        m_sparse.resize(id + 1, INVALID_INDEX);
-
-      // point space for for new dence index
-      m_sparse[id] = m_dense.size();
-
-      // push the componet in dence entity array
-      m_dense_entities.push_back(id);
-
-      // push to the component array
-      m_dense.push_back(std::move(component));
-
-      // return a ref to entity
+      m_sparse[entity.get_id()] = m_sparse.size();
+      m_entity_dense.push_back(entity.get_id());
       return m_dense.back();
     }
-    T& get(EntityID id)
-    {
-      // returns the dence index based on the comment and ref to id
-        return m_dense[m_sparse[id]];
-    }
-    bool has(EntityID id)
-    {
-      // return true if both the id is grater than the size of the sparse array
-      // and the sparse id is not equal to INVALID_INDEX
-      return id < m_sparse.size() && m_sparse[id] != INVALID_INDEX;
-    }
-    void remove(EntityID id)
-    {
-      if (!has(id)) return;
-      // copy a local ref to m_sparse
-      size_t index_to_remove = m_sparse[id];
 
-      // making a index value
+    T& get_component(Entity &entity)
+    {
+      return m_dense[m_sparse[entity.get_id()]];
+    }
+
+    bool has_component(Entity &entity)
+    {
+      return entity.get_id() < m_sparse.size() && 
+        m_sparse[entity.get_id()] != INVALID_INDEX;
+    }
+
+    void remove(Entity &entity)
+    {
+      size_t index_remove = m_sparse[entity.get_id()];
       size_t last_index = m_dense.size() - 1;
 
-      // copy of the index with the one removed
-      EntityID last_entity = m_dense_entities[last_index];
+      EntityID last_entity = m_entity_dense[last_index];
+      m_dense[index_remove] = std::move(m_dense[last_index]);
+      m_entity_dense[last_entity] = index_remove;
 
-      // updating the m_dense witht he right list
-      m_dense[index_to_remove] = std::move(m_dense[last_index]);
-
-      // moving evering to its still compact
-      m_dense_entities[index_to_remove] = last_entity;
-
-      m_sparse[last_entity] = index_to_remove;
-
-      // removing the data form the array m_dense
       m_dense.pop_back();
-      m_dense_entities.pop_back();
+      m_entity_dense.pop_back();
 
-      // making id invalid
-      m_sparse[id] = INVALID_INDEX;
+      m_sparse[entity.get_id()] = INVALID_INDEX;
     }
-
   private:
     static constexpr size_t INVALID_INDEX = std::numeric_limits<size_t>::max();
-    std::vector<T>        m_dense; // packed array of conponets
-    std::vector<EntityID> m_dense_entities; // a parsial array tha tis owned by m_dense 
-    std::vector<size_t>   m_sparse; // more loose place holder of the entitys to later be conpacted in dence
+    std::vector<T>        m_dense;
+    std::vector<EntityID> m_entity_dense;
+    std::vector<size_t>   m_sparse;
 };
 
-class ECS
+class Register 
 {
   public:
     Entity create_entity()
     {
       EntityID id;
-      if (!m_available_entities.empty())
+      if (!m_entity_dence.empty())
       {
-        id = m_available_entities.back();
-        m_available_entities.pop_back();
+        size_t index = m_free_slots.back();
+        m_free_slots.pop_back();
+        m_entity_dence[index] = id;
+        return Entity(NULL_ENTITY_ID);
       }
       else 
       {
-        id = m_next_id++;
+        id = m_next_id ++;
       }
       return Entity(id);
     }
 
     void destroy_entity(Entity &entity)
     {
-      if (!entity.is_null())
+      if (entity.get_id() >= m_entity_dence.size())
       {
-        m_available_entities.push_back(entity.id());
+        m_entity_dence[entity.get_id()];
+        m_free_slots.push_back(entity.get_id());
       }
     }
 
-    template<typename T>
-    T& add_component(Entity ent , T component)
-    {
-      return get_pool<T>().insert(ent.id(), component);
-    }
-    template<typename T>
-    T& get_component(Entity ent, T component)
-    {
-      return get_pool<T>().get(ent.id());
-    }
-    template<typename T>
-    T& has_component(Entity ent, T component)
-    {
-      return get_pool<T>().has(ent.id());
-    }
-    template<typename T>
-    T& remove_component(Entity ent , T component)
-    {
-      return get_pool<T>().remove(ent.id());
-    }
+    template <typename T>
+      T& add(Entity entity, T component)
+      {
+        return get_pool<T>().insert_component(entity, std::move(component));
+      }
+    template <typename T>
+      T& get(Entity entity, T component)
+      {
+        return get_pool<T>().get_component(entity);
+      }
+    template <typename T>
+      T& has(Entity entity, T component)
+      {
+        return get_pool<T>().has_component(entity);
+      }
+    template <typename T>
+      T& remove(Entity entity, T component)
+      {
+        return get_pool<T>().remove(entity);
+      }
+
+
   private:
+    template <typename T>
+      IPool<T>& get_pool();
 
-    template<typename T>
-      ComponentPool<T>& get_pool()
-      {
-        static ComponentPool<T> pool;
-        return pool;
-      }
-
-    EntityID m_next_id = 0;
-    std::vector<EntityID> m_available_entities; 
+    EntityID m_next_id;
+    std::vector<EntityID> m_entity_dence;
+    std::vector<size_t> m_free_slots;
 };
+
