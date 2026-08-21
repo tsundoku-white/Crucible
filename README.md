@@ -13,23 +13,12 @@ rendering like 2D & 3D.
 - made Entity Component System (not finished)
 
 ## How to build?
+[Build Instructions](./docs/BUILDING.md)
 
-you need: ninja, cmake, vulkan 1.3+, glfw 3.3
-
-In project past and i should run:
-``` bash
+In root of project past this to build:
+```bash
 cmake -B build -G Ninja && ninja -C build && ./build/Crucible
 ```
 
-## im working on:
-- ECS
-
-## coding style 
-
-- Data Types     | eg. structs, class ...| Pascal_Case
-- Varables       | eg. uint, float ...   | snake_case
-
-- namespace      | n_prefix 
-- member         | m_prefix
 
 

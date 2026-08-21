@@ -48,7 +48,7 @@ class IRenderer
     void destroy_sync_objects();
 
     // settings
-    uint32_t m_thread_count = 11;
+    uint32_t m_thread_count = 2;
     uint32_t m_max_frame_in_flight = 3;
 
     bool m_is_vsync = true;

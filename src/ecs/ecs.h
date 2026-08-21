@@ -29,45 +29,45 @@ template <typename T>
 class IPool 
 {
   public:
-    T& insert_component(Entity &entity, T component)
+    T& insert_component(EntityID id, T component)
     {
-      if (has_component(entity.get_id()))
+      if (has_component(id))
       {
-        return get_component(get_component(entity.get_id()));
-        std::print("id exists: id {}", entity.get_id());
+        return get_component(id);
       }
-      if (get_component(entity.get_id()) > m_sparse.size())
-        m_sparse.resize(entity.get_id() + 1, INVALID_INDEX);
+      if (id >= m_sparse.size())
+        m_sparse.resize(id + 1, INVALID_INDEX);
 
-      m_sparse[entity.get_id()] = m_sparse.size();
-      m_entity_dense.push_back(entity.get_id());
+      m_sparse[id] = m_sparse.size();
+      m_dense.push_back(std::move(component));
+      m_entity_dense.push_back(id);
       return m_dense.back();
     }
 
-    T& get_component(Entity &entity)
+    T& get_component(EntityID &id)
     {
-      return m_dense[m_sparse[entity.get_id()]];
+      return m_dense[m_sparse[id]];
     }
 
-    bool has_component(Entity &entity)
+    bool has_component(EntityID &id)
     {
-      return entity.get_id() < m_sparse.size() && 
-        m_sparse[entity.get_id()] != INVALID_INDEX;
+      return id < m_sparse.size() &&  m_sparse[id] != INVALID_INDEX;
     }
 
-    void remove(Entity &entity)
+    void remove(EntityID &id)
     {
-      size_t index_remove = m_sparse[entity.get_id()];
+      size_t index_remove = m_sparse[id];
       size_t last_index = m_dense.size() - 1;
 
       EntityID last_entity = m_entity_dense[last_index];
       m_dense[index_remove] = std::move(m_dense[last_index]);
-      m_entity_dense[last_entity] = index_remove;
+      m_entity_dense[index_remove] = last_entity;
+      m_sparse[last_entity] = index_remove;
 
       m_dense.pop_back();
       m_entity_dense.pop_back();
 
-      m_sparse[entity.get_id()] = INVALID_INDEX;
+      m_sparse[id] = INVALID_INDEX;
     }
   private:
     static constexpr size_t INVALID_INDEX = std::numeric_limits<size_t>::max();
@@ -82,25 +82,26 @@ class Register
     Entity create_entity()
     {
       EntityID id;
-      if (!m_entity_dence.empty())
+      if (!m_free_slots.empty())
       {
-        size_t index = m_free_slots.back();
+        id = m_free_slots.back();
         m_free_slots.pop_back();
-        m_entity_dence[index] = id;
-        return Entity(NULL_ENTITY_ID);
+        m_entity_dence[id] = id;
+        return Entity(id);
       }
       else 
       {
         id = m_next_id ++;
+        m_entity_dence.push_back(id);
       }
       return Entity(id);
     }
 
     void destroy_entity(Entity &entity)
     {
-      if (entity.get_id() >= m_entity_dence.size())
+      if (entity.get_id() < m_entity_dence.size())
       {
-        m_entity_dence[entity.get_id()];
+        m_entity_dence[entity.get_id()] = NULL_ENTITY_ID;
         m_free_slots.push_back(entity.get_id());
       }
     }
@@ -108,30 +109,33 @@ class Register
     template <typename T>
       T& add(Entity entity, T component)
       {
-        return get_pool<T>().insert_component(entity, std::move(component));
+        return get_pool<T>().insert_component(entity.get_id(), std::move(component));
       }
     template <typename T>
-      T& get(Entity entity, T component)
+      T& get(Entity entity)
       {
-        return get_pool<T>().get_component(entity);
+        return get_pool<T>().get_component(entity.get_id());
       }
     template <typename T>
-      T& has(Entity entity, T component)
+      bool has(Entity entity)
       {
-        return get_pool<T>().has_component(entity);
+        return get_pool<T>().has_component(entity.get_id());
       }
     template <typename T>
-      T& remove(Entity entity, T component)
+      void remove(Entity entity)
       {
-        return get_pool<T>().remove(entity);
+        get_pool<T>().remove(entity.get_id());
       }
-
-
   private:
-    template <typename T>
-      IPool<T>& get_pool();
 
-    EntityID m_next_id;
+    template <typename T>
+      IPool<T>& get_pool()
+      {
+        static IPool<T> pool;
+        return pool;
+      }
+
+    EntityID m_next_id = 0;
     std::vector<EntityID> m_entity_dence;
     std::vector<size_t> m_free_slots;
 };
