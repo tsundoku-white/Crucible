@@ -19,7 +19,15 @@ namespace n_buffer
     allocInfo.usage = memory_usage;
     allocInfo.flags = alloc_flags;
 
+    VkBufferDeviceAddressInfo addInfo{};
+    addInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+    addInfo.buffer = buffer.m_buffer;
+
+    VkDeviceAddress address = vkGetBufferDeviceAddress(context.m_device, &addInfo);
+
+    // btw n in name means new
     VmaAllocationInfo nAllocInfo{};
+    vmaGetAllocationInfo(context.m_allocator, buffer.m_allocation, &nAllocInfo);
 
     if (vmaCreateBuffer(context.m_allocator, &bufferInfo, &allocInfo,
           &buffer.m_buffer, &buffer.m_allocation, &nAllocInfo) != VK_SUCCESS) {

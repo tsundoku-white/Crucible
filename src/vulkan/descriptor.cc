@@ -3,6 +3,7 @@
 #include "src/vulkan/context.h"
 #include <array>
 #include <cstdint>
+#include <vector>
 #include <vulkan/vulkan_core.h>
 
 // i need commnet to keep track with what i happneing.
@@ -36,7 +37,7 @@ namespace n_descriptor
       throw std::runtime_error("failed to create descriptor set layout!");
     }
 
-    // ---- Pool ----
+    // ---- Pool (sized for frameCount sets, 1 UBO + 1 SSBO each) ----
     std::array<VkDescriptorPoolSize, 2> poolSize;
     poolSize[0].type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSize[0].descriptorCount = frameCount;
@@ -53,18 +54,26 @@ namespace n_descriptor
       throw std::runtime_error("failed to create descriptor pool!");
     }
 
-    // ---- Allocate ----
+    // ---- Allocate (one set per frame-in-flight, all same layout) ----
+    std::vector<VkDescriptorSetLayout> layouts(frameCount, descriptor.m_layout);
+    descriptor.m_sets.resize(frameCount);
+
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool     = descriptor.m_pool;
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts        = &descriptor.m_layout;
+    allocInfo.descriptorSetCount = frameCount;
+    allocInfo.pSetLayouts        = layouts.data();
 
-    if (vkAllocateDescriptorSets(context.m_device, &allocInfo, &descriptor.m_set) != VK_SUCCESS) {
-      throw std::runtime_error("failed to allocate descriptor set!");
+    if (vkAllocateDescriptorSets(context.m_device, &allocInfo, descriptor.m_sets.data()) != VK_SUCCESS) {
+      throw std::runtime_error("failed to allocate descriptor sets!");
     }
 
     // ---- Buffer infos + writes ----
+    // NOTE: currently every frame's set points at the SAME uboBuffer/ssboBuffer.
+    // That's fine if the UBO/SSBO are themselves single shared buffers you update
+    // per-frame before use. If you later make uboBuffer/ssboBuffer per-frame too
+    // (an array/vector of Buffer, like Command::m_buffers), pass that in here and
+    // index it per-frame inside this loop instead of using the same buffer for all.
     VkDescriptorBufferInfo uboBufferInfo{};
     uboBufferInfo.buffer  = uboBuffer.m_buffer;
     uboBufferInfo.offset  = 0;
@@ -75,25 +84,28 @@ namespace n_descriptor
     ssboBufferInfo.offset = 0;
     ssboBufferInfo.range  = sizeof(ShaderStorageBufferObject);
 
-    std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+    for (uint32_t i = 0; i < frameCount; ++i)
+    {
+      std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 
-    // ---- UBO Write ----
-    descriptorWrites[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[0].dstSet          = descriptor.m_set;
-    descriptorWrites[0].dstBinding      = 0;
-    descriptorWrites[0].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorWrites[0].descriptorCount = 1;
-    descriptorWrites[0].pBufferInfo     = &uboBufferInfo;
+      // ---- UBO Write ----
+      descriptorWrites[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+      descriptorWrites[0].dstSet          = descriptor.m_sets[i];
+      descriptorWrites[0].dstBinding      = 0;
+      descriptorWrites[0].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+      descriptorWrites[0].descriptorCount = 1;
+      descriptorWrites[0].pBufferInfo     = &uboBufferInfo;
 
-    // ---- SSBO Write ----
-    descriptorWrites[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[1].dstSet          = descriptor.m_set;
-    descriptorWrites[1].dstBinding      = 1;
-    descriptorWrites[1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    descriptorWrites[1].descriptorCount = 1;
-    descriptorWrites[1].pBufferInfo     = &ssboBufferInfo;
+      // ---- SSBO Write ----
+      descriptorWrites[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+      descriptorWrites[1].dstSet          = descriptor.m_sets[i];
+      descriptorWrites[1].dstBinding      = 1;
+      descriptorWrites[1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+      descriptorWrites[1].descriptorCount = 1;
+      descriptorWrites[1].pBufferInfo     = &ssboBufferInfo;
 
-    vkUpdateDescriptorSets(context.m_device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+      vkUpdateDescriptorSets(context.m_device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+    }
 
     VkVertexInputBindingDescription bindingDescription{};
     bindingDescription.binding    = 0;
@@ -129,6 +141,6 @@ namespace n_descriptor
 
     descriptor.m_pool   = VK_NULL_HANDLE;
     descriptor.m_layout = VK_NULL_HANDLE;
-    descriptor.m_set    = VK_NULL_HANDLE;
+    descriptor.m_sets.clear();
   }
 }

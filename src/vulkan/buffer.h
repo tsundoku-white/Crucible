@@ -1,6 +1,7 @@
 #pragma once
 
 #include "src/core/pch.h"
+#include <vulkan/vulkan_core.h>
 
 struct Context;
 struct Command;
@@ -31,11 +32,12 @@ struct Vertex {
 
 struct Buffer
 {
-  VkBuffer m_buffer;
-  VmaAllocation m_allocation;
-  VmaAllocationInfo m_info;
-  VkDeviceSize  m_size       = 0;
-  void*         m_mapped     = nullptr;
+  VkBuffer          m_buffer      = VK_NULL_HANDLE;
+  VmaAllocation     m_allocation  = VK_NULL_HANDLE;
+  VmaAllocationInfo m_info        = {};
+  VkDeviceSize      m_size        = 0;
+  void*             m_mapped      = nullptr;
+  VkDeviceAddress   m_address     = 0;
 };
 
 namespace n_buffer
