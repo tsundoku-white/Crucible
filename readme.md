@@ -4,7 +4,8 @@ rendering to the screen in c++.
 Crucible is very inspired by Entt, Bevy and raylib.
 
 ## Features
-- 3D Rendering 
+- ~3D Rendering~
+- ECS
 - Model loading in .glb file format 
 
 ## Requirment To Run 
@@ -17,8 +18,10 @@ Crucible is very inspired by Entt, Bevy and raylib.
 
 ## Goal
 My goal is to make a lib that can easily be use by anyone who is willing to code in cpp.
+Make cool rendering stuff.
 
-10,000 object in one scene at 120fps on the specifired specs.
+10,000 object in one scene at 120fps on the specifired [specs](./docs/target_specs.md).
+and lua based ui layer for like life and sanity.
 ## How To Get Started
 As of current the is not alot of Examples but soon to come...
 

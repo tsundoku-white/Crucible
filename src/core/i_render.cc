@@ -135,7 +135,7 @@ namespace n_render
     submitInfo.pCommandBuffers = &iResource.m_command.m_buffers[iRender.m_frameIndex];
 
     VkSemaphore signalSemaphores[] = {
-      iRender.m_renderCompleteSemaphores[iRender.m_frameIndex]
+      iRender.m_renderCompleteSemaphores[imageIndex]
     };
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
