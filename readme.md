@@ -1,4 +1,7 @@
 
+> [!WARNING]
+> The library is not in production ready state yet.
+
 Crucible is a library for one who is looking for a way to program games or anything to do with 
 rendering to the screen in c++.
 Crucible is very inspired by Entt, Bevy and raylib.
