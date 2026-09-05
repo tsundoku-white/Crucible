@@ -16,7 +16,7 @@ struct Window
 namespace n_window
 {
   void createWindow(Window &window);
-  void destoryWindow(Window &window);
+  void destroyWindow(Window &window);
 
   void pollEvents();
 

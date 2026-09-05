@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdlib>
+#include <vulkan/vulkan_core.h>
 #ifndef NDEBUG
 static constexpr bool g_debug = true;
 #else

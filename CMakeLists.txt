@@ -12,6 +12,11 @@ endif()
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Add to your root CMakeLists.txt
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0")
+
 find_package(Vulkan REQUIRED)
 
 ## getting pkgs with cmake 
@@ -63,6 +68,11 @@ add_executable(Crucible
 
   ## core 
   src/core/i_render.cc
+  src/core/i_resource.cc
+
+  ## resources
+  src/resources/load_mesh.cc
+
   ## vulkan
   src/vulkan/window.cc
   src/vulkan/buffer.cc

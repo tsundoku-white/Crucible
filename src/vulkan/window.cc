@@ -18,7 +18,7 @@ namespace n_window
 
   }
 
-  void destoryWindow(Window &window)              { glfwTerminate();  }
+  void destroyWindow(Window &window)              { glfwTerminate();  }
   void pollEvents()                               { glfwPollEvents(); }
   void setShouldClose(Window &window, bool value) { glfwSetWindowShouldClose(window.m_handle, value); }
   bool shouldClose(Window &window)                { return glfwWindowShouldClose(window.m_handle);    }

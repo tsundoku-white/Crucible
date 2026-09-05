@@ -1,7 +1,7 @@
 #pragma once
 
 #include "src/core/pch.h"
-#include "src/vulkan/descriptor.h"
+#include "src/vulkan/buffer.h"
 
 struct MeshData
 {
@@ -12,6 +12,5 @@ struct MeshData
 
 namespace n_resource
 {
-  void load_mesh(MeshData &mesh, std::string path);
-  void destory_pipeline(MeshData &mesh);
+  void loadMesh(MeshData &mesh, std::string path);
 }

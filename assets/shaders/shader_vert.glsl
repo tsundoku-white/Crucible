@@ -1,49 +1,46 @@
 #version 450
 
-layout(location = 0) in vec3 in_loc;
-layout(location = 1) in vec3 in_normal;
-layout(location = 2) in vec2 in_uv;
-layout(location = 3) in vec3 in_color;
-
-layout(binding = 0) uniform UBO {
-    mat4 projection;
-    mat4 view;
-    vec3 light_pos; 
+// ---- Descriptor Set 0 ----
+// Binding 0: camera UBO — matches n_resource::UniformBufferObject exactly
+// (mat4 projection, mat4 view, std140 layout, both 16-byte aligned already).
+layout(std140, set = 0, binding = 0) uniform CameraUBO
+{
+  mat4 projection;
+  mat4 view;
 } ubo;
 
-layout(binding = 1) readonly buffer SSUBO {
-    mat4 model[];
-} ssubo;
+// Binding 1: per-draw model matrix SSBO — matches the FRONT of
+// n_resource::ShaderStorageBufferObject (mat4 modelsMatrix). We only read
+// the leading mat4; the trailing bookkeeping fields (modelCount, indices,
+// indicesCount) aren't needed here and are simply unused tail bytes.
+layout(std430, set = 0, binding = 1) readonly buffer ModelSSBO
+{
+  mat4 model;
+} ssbo;
 
-layout(binding = 3) readonly buffer TexIndexSSBO {
-    int tex_index[];
-} tex_ssbo;
+// ---- Vertex attributes ----
+// Matches Vertex::get_attributeDescriptions() in buffer.h exactly:
+//   location 0 = m_pos    (vec3)
+//   location 1 = m_normal (vec3)
+//   location 2 = m_uv     (vec2)
+layout(location = 0) in vec3 inPosition;
+layout(location = 1) in vec3 inNormal;
+layout(location = 2) in vec2 inUV;
 
-layout(location = 0) out vec3 frag_normal;
-layout(location = 1) out vec2 frag_uv;
-layout(location = 2) out vec3 frag_color;
-layout(location = 3) out vec3 frag_world_pos;
-layout(location = 4) out vec3 frag_light_pos;
-layout(location = 5) flat out int frag_tex_index;
+// ---- Outputs to fragment shader ----
+layout(location = 0) out vec3 fragNormalWorld;
+layout(location = 1) out vec2 fragUV;
 
-void main() {
-    mat4 model = ssubo.model[gl_InstanceIndex];
-    vec4 world_pos = model * vec4(in_loc, 1.0);
+void main()
+{
+  mat4 modelMatrix = ssbo.model;
 
-    gl_Position = ubo.projection * ubo.view * world_pos;
+  vec4 worldPos = modelMatrix * vec4(inPosition, 1.0);
+  gl_Position = ubo.projection * ubo.view * worldPos;
 
-    mat3 normal_matrix = mat3(transpose(inverse(model)));
+  // Normal matrix (inverse-transpose) to correctly handle non-uniform scale.
+  mat3 normalMatrix = mat3(transpose(inverse(modelMatrix)));
+  fragNormalWorld = normalize(normalMatrix * inNormal);
 
-    float det = determinant(mat3(model));
-    if (det < 0.0) {
-        normal_matrix = -normal_matrix;
-        gl_Position.w = -gl_Position.w;
-    }
-
-    frag_normal = normalize(normal_matrix * in_normal);
-    frag_uv = in_uv;
-    frag_color = in_color;
-    frag_world_pos = world_pos.xyz;
-    frag_light_pos = ubo.light_pos;
-    frag_tex_index = tex_ssbo.tex_index[gl_InstanceIndex];
+  fragUV = inUV;
 }

@@ -14,7 +14,7 @@
 | containers       | PascalCase       | `struct Context`, `struct QueueFamilyIndices`   |
 | functions        | camelCase        | `createSwapchain()`, `isComplete()`             |
 | locals           | camelCase        | `messengerCI`, `imageCount`                     |
-| members          | m_PascalCase     | `m_Device`, `m_Swapchain`                       | 
+| members          | m_camelCase     | `m_Device`, `m_Swapchain`                       | 
 | globals          | g_PascalCase     | `g_FrameIndex`                                  |
 | constants        | SCREAMING_SNAKE  | `MAX_ENTITIES`, `ENABLE_DEBUG_DRAW`             |
 | macros           | SCREAMING_SNAKE  | `ARRAY_COUNT(arr)`                              |

@@ -3,6 +3,7 @@
 #include "src/core/pch.h"
 #include <src/vulkan/window.h>
 #include <vulkan/vulkan_core.h>
+#include <vector>  // Add this
 
 struct Context
 {
@@ -30,5 +31,8 @@ struct Context
 namespace n_context
 {
   void createContext(Context &context, Window &window);
-  void destoryContext(Context &context);
+  void destroyContext(Context &context); 
+  void createSwapchain(Context &context, Window &window);
+  void destroySwapchain(Context &context);
+  void recreateSwapchain(Context &context, Window &window); 
 }

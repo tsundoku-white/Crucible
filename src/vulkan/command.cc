@@ -95,13 +95,16 @@ namespace n_command
     barrierDependencyInfo.pImageMemoryBarriers = outputBarriers.data();
     vkCmdPipelineBarrier2(commandBuffer, &barrierDependencyInfo);
 
+    VkClearValue clearColor;
+    clearColor.color = {{1.f, 0.8118f, 0.1373f, 1.0f}};
+
     VkRenderingAttachmentInfo colorAttachmentInfo{};
     colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     colorAttachmentInfo.imageView = context.m_swapchainImageViews[imageIndex];
     colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
     colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachmentInfo.clearValue.color = { 0.0f, 0.0f, 0.0f, 1.0f };
+    colorAttachmentInfo.clearValue = clearColor;
 
     VkRenderingAttachmentInfo depthAttachmentInfo{};
     depthAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
@@ -142,10 +145,13 @@ namespace n_command
     // Vertex + index buffers are now two distinct Buffer params, not the same handle.
     VkDeviceSize vOffset{ 0 };
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer.m_buffer, &vOffset);
-    vkCmdBindIndexBuffer(commandBuffer, indexBuffer.m_buffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindIndexBuffer(commandBuffer, indexBuffer.m_buffer, 0, VK_INDEX_TYPE_UINT32);
 
+    // shaderDataBuffers currently holds ONE shared UBO (see i_resource.cc:
+    // uboBuffer.resize(1)), not one per frame-in-flight, so always index 0
+    // here regardless of frameIndex.
     vkCmdPushConstants(commandBuffer, pipeline.m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0,
-        sizeof(VkDeviceAddress), &shaderDataBuffers[frameIndex].m_address);
+        sizeof(VkDeviceAddress), &shaderDataBuffers[0].m_address);
 
     for (const auto &draw : drawInfos)
     {

@@ -3,6 +3,7 @@
 #include <print>
 #include <src/core/pch.h>
 #include <stdexcept>
+#include <string_view>
 #include <vulkan/vulkan_core.h>
 
 namespace n_context {
@@ -15,8 +16,169 @@ namespace n_context {
       const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
       void* pUserData)
   {
-    std::print("Validation Layer: {}\n", pCallbackData->pMessage);
+    std::print("\e[0;33m" "validation layer: " "\e[0m" "{}\n", pCallbackData->pMessage);
+
     return VK_FALSE;
+  }
+
+  static bool isValidationLayerAvailable(const char* layerName)
+  {
+    uint32_t layerCount = 0;
+    vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+
+    std::vector<VkLayerProperties> availableLayers(layerCount);
+    vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+
+    for (const auto &layer : availableLayers)
+      if (std::string_view(layer.layerName) == layerName)
+        return true;
+
+    return false;
+  }
+
+  void destroySwapchain(Context &context)
+  {
+    if (context.m_depthImageView != VK_NULL_HANDLE)
+    {
+      vkDestroyImageView(context.m_device, context.m_depthImageView, nullptr);
+      context.m_depthImageView = VK_NULL_HANDLE;
+    }
+    if (context.m_depthImage != VK_NULL_HANDLE)
+    {
+      vmaDestroyImage(context.m_allocator, context.m_depthImage, context.m_depthAllocation);
+      context.m_depthImage = VK_NULL_HANDLE;
+      context.m_depthAllocation = VK_NULL_HANDLE;
+    }
+
+    for (VkImageView view : context.m_swapchainImageViews)
+      if (view != VK_NULL_HANDLE)
+        vkDestroyImageView(context.m_device, view, nullptr);
+    context.m_swapchainImageViews.clear();
+    context.m_swapchainImages.clear();
+
+    if (context.m_swapchain != VK_NULL_HANDLE)
+    {
+      vkDestroySwapchainKHR(context.m_device, context.m_swapchain, nullptr);
+      context.m_swapchain = VK_NULL_HANDLE;
+    }
+  }
+
+  void createSwapchain(Context &context, Window &window)
+  {
+    if (context.m_surface == VK_NULL_HANDLE)
+    {
+      if (glfwCreateWindowSurface(context.m_instance, window.m_handle, NULL, &context.m_surface))
+        throw std::runtime_error("failed to create surface\n");
+    }
+
+    VkSurfaceCapabilitiesKHR surfaceCaps{};
+    context.m_swapchain_extent = { window.m_width, window.m_height };
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.m_physicalDevice, context.m_surface, &surfaceCaps);
+
+    uint32_t desiredImageCount = surfaceCaps.minImageCount + 1;
+    if (surfaceCaps.maxImageCount > 0 && desiredImageCount > surfaceCaps.maxImageCount)
+      desiredImageCount = surfaceCaps.maxImageCount;
+
+    VkSwapchainCreateInfoKHR swapchainCreateInfo {};
+    swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    context.m_swapchainImageFormat = VK_FORMAT_B8G8R8A8_SRGB;
+
+    swapchainCreateInfo.surface         = context.m_surface;
+    swapchainCreateInfo.minImageCount   = desiredImageCount;
+    swapchainCreateInfo.imageFormat     = context.m_swapchainImageFormat;
+    swapchainCreateInfo.imageColorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
+    swapchainCreateInfo.imageExtent     = context.m_swapchain_extent;
+    swapchainCreateInfo.imageArrayLayers  = 1;
+    swapchainCreateInfo.imageUsage        = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    swapchainCreateInfo.preTransform      = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+    swapchainCreateInfo.compositeAlpha    = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    swapchainCreateInfo.presentMode       = VK_PRESENT_MODE_FIFO_KHR;
+
+    if (vkCreateSwapchainKHR(context.m_device, &swapchainCreateInfo, nullptr, &context.m_swapchain))
+      throw std::runtime_error("failed to create swapchain\n");
+
+    uint32_t swapchainImageCount = 0;
+    vkGetSwapchainImagesKHR(context.m_device, context.m_swapchain, &swapchainImageCount, nullptr);
+    context.m_swapchainImages.resize(swapchainImageCount);
+    vkGetSwapchainImagesKHR(context.m_device, context.m_swapchain, &swapchainImageCount, context.m_swapchainImages.data());
+
+    context.m_swapchainImageViews.resize(swapchainImageCount);
+    for (uint32_t i = 0; i < swapchainImageCount; i++)
+    {
+      VkImageViewCreateInfo viewCreateInfo{};
+      viewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+      viewCreateInfo.image = context.m_swapchainImages[i];
+      viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+      viewCreateInfo.format = context.m_swapchainImageFormat;
+      viewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+      viewCreateInfo.subresourceRange.baseMipLevel = 0;
+      viewCreateInfo.subresourceRange.levelCount = 1;
+      viewCreateInfo.subresourceRange.baseArrayLayer = 0;
+      viewCreateInfo.subresourceRange.layerCount = 1;
+
+      if (vkCreateImageView(context.m_device, &viewCreateInfo, nullptr, &context.m_swapchainImageViews[i]) != VK_SUCCESS)
+        throw std::runtime_error("failed to create swapchain image view\n");
+    }
+
+    // depth buffer
+    std::vector<VkFormat> depthFormatList {
+      VK_FORMAT_D32_SFLOAT_S8_UINT,
+        VK_FORMAT_D24_UNORM_S8_UINT
+    };
+
+    VkFormat depthFormat{ VK_FORMAT_UNDEFINED };
+    for (VkFormat& format : depthFormatList)
+    {
+      VkFormatProperties2 formatProperties { .sType = VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2 };
+      vkGetPhysicalDeviceFormatProperties2(context.m_physicalDevice, format, &formatProperties);
+      if (formatProperties.formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
+      {
+        depthFormat = format;
+        break;
+      }
+    }
+
+    if (depthFormat == VK_FORMAT_UNDEFINED)
+      throw std::runtime_error("no supported depth-stencil format found\n");
+
+    context.m_depthFormat = depthFormat;
+
+    VkImageCreateInfo depthImageCreateInfo {};
+    depthImageCreateInfo.sType          = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    depthImageCreateInfo.imageType      = VK_IMAGE_TYPE_2D;
+    depthImageCreateInfo.format         = depthFormat;
+    depthImageCreateInfo.extent.width   = context.m_swapchain_extent.width;
+    depthImageCreateInfo.extent.height  = context.m_swapchain_extent.height;
+    depthImageCreateInfo.extent.depth   = 1;
+    depthImageCreateInfo.mipLevels      = 1;
+    depthImageCreateInfo.arrayLayers    = 1;
+    depthImageCreateInfo.samples        = VK_SAMPLE_COUNT_1_BIT;
+    depthImageCreateInfo.tiling         = VK_IMAGE_TILING_OPTIMAL;
+    depthImageCreateInfo.usage          = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    depthImageCreateInfo.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    VmaAllocationCreateInfo allocCreateInfo{
+      .flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
+        .usage = VMA_MEMORY_USAGE_AUTO
+    };
+
+    if (vmaCreateImage(context.m_allocator, &depthImageCreateInfo, &allocCreateInfo,
+          &context.m_depthImage, &context.m_depthAllocation, nullptr) != VK_SUCCESS)
+      throw std::runtime_error("failed to create depth image\n");
+
+    VkImageViewCreateInfo depthViewCreateInfo{};
+    depthViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    depthViewCreateInfo.image = context.m_depthImage;
+    depthViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    depthViewCreateInfo.format = context.m_depthFormat;
+    depthViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    depthViewCreateInfo.subresourceRange.baseMipLevel = 0;
+    depthViewCreateInfo.subresourceRange.levelCount = 1;
+    depthViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+    depthViewCreateInfo.subresourceRange.layerCount = 1;
+
+    if (vkCreateImageView(context.m_device, &depthViewCreateInfo, nullptr, &context.m_depthImageView) != VK_SUCCESS)
+      throw std::runtime_error("failed to create depth image view\n");
   }
 
   // the constructer for the context.
@@ -41,6 +203,21 @@ namespace n_context {
     instanceCreateInfo.pApplicationInfo         = &appInfo;
     instanceCreateInfo.enabledExtensionCount    = static_cast<uint32_t>(extensions.size());
     instanceCreateInfo.ppEnabledExtensionNames  = extensions.data();
+
+    const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
+
+    if (g_debug && isValidationLayerAvailable("VK_LAYER_KHRONOS_validation"))
+    {
+      instanceCreateInfo.enabledLayerCount   = static_cast<uint32_t>(validationLayers.size());
+      instanceCreateInfo.ppEnabledLayerNames = validationLayers.data();
+      std::print("Vulkan validation layer enabled.\n");
+    }
+    else if (g_debug)
+    {
+      std::print("WARNING: VK_LAYER_KHRONOS_validation not found - install the "
+                 "Vulkan SDK/validation layers package to get real API misuse "
+                 "checking instead of opaque driver crashes.\n");
+    }
 
     if (vkCreateInstance(&instanceCreateInfo, nullptr, &context.m_instance) != VK_SUCCESS)
     {
@@ -151,7 +328,7 @@ namespace n_context {
     deviceCreateInfo.pEnabledFeatures         = &enabledVk10Features;
 
     if (vkCreateDevice(context.m_physicalDevice, &deviceCreateInfo, nullptr, &context.m_device) != VK_SUCCESS)
-  throw std::runtime_error("failed to create logical device");
+      throw std::runtime_error("failed to create logical device");
 
     vkGetDeviceQueue(context.m_device, queueFamily, 0, &context.m_queue);
 
@@ -172,142 +349,21 @@ namespace n_context {
       throw std::runtime_error("failed to load vma\n");
     }
 
-    if (glfwCreateWindowSurface(context.m_instance, window.m_handle, NULL, &context.m_surface))
-    {
-      throw std::runtime_error("failed to create surface\n");
-    }
-
-    VkSurfaceCapabilitiesKHR surfaceCaps{};
-    context.m_swapchain_extent = { window.m_width, window.m_height };
-
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.m_physicalDevice, context.m_surface, &surfaceCaps);
-
-    uint32_t desiredImageCount = surfaceCaps.minImageCount + 1;
-    if (surfaceCaps.maxImageCount > 0 && desiredImageCount > surfaceCaps.maxImageCount)
-      desiredImageCount = surfaceCaps.maxImageCount;
-
-    VkSwapchainCreateInfoKHR swapchainCreateInfo {};
-    swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    context.m_swapchainImageFormat = VK_FORMAT_B8G8R8A8_SRGB;
-
-    swapchainCreateInfo.surface         = context.m_surface;
-    swapchainCreateInfo.minImageCount   = desiredImageCount;
-    swapchainCreateInfo.imageFormat     = context.m_swapchainImageFormat;
-    swapchainCreateInfo.imageColorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
-    swapchainCreateInfo.imageExtent     = context.m_swapchain_extent;
-    swapchainCreateInfo.imageArrayLayers  = 1;
-    swapchainCreateInfo.imageUsage        = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    swapchainCreateInfo.preTransform      = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-    swapchainCreateInfo.compositeAlpha    = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    swapchainCreateInfo.presentMode       = VK_PRESENT_MODE_FIFO_KHR;
-
-    if (vkCreateSwapchainKHR(context.m_device, &swapchainCreateInfo, nullptr, &context.m_swapchain))
-    {
-      throw std::runtime_error("failed to create swapchain\n");
-    }
-
-    // retrieve swapchain images
-    uint32_t swapchainImageCount = 0;
-    vkGetSwapchainImagesKHR(context.m_device, context.m_swapchain, &swapchainImageCount, nullptr);
-    context.m_swapchainImages.resize(swapchainImageCount);
-    vkGetSwapchainImagesKHR(context.m_device, context.m_swapchain, &swapchainImageCount, context.m_swapchainImages.data());
-
-    // create a view for each swapchain image
-    context.m_swapchainImageViews.resize(swapchainImageCount);
-    for (uint32_t i = 0; i < swapchainImageCount; i++)
-    {
-      VkImageViewCreateInfo viewCreateInfo{};
-      viewCreateInfo.sType                            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-      viewCreateInfo.image                             = context.m_swapchainImages[i];
-      viewCreateInfo.viewType                          = VK_IMAGE_VIEW_TYPE_2D;
-      viewCreateInfo.format                            = context.m_swapchainImageFormat;
-      viewCreateInfo.subresourceRange.aspectMask        = VK_IMAGE_ASPECT_COLOR_BIT;
-      viewCreateInfo.subresourceRange.baseMipLevel      = 0;
-      viewCreateInfo.subresourceRange.levelCount        = 1;
-      viewCreateInfo.subresourceRange.baseArrayLayer    = 0;
-      viewCreateInfo.subresourceRange.layerCount        = 1;
-
-      if (vkCreateImageView(context.m_device, &viewCreateInfo, nullptr, &context.m_swapchainImageViews[i]) != VK_SUCCESS)
-      {
-        throw std::runtime_error("failed to create swapchain image view\n");
-      }
-    }
-
-
-    // depth buffer 
-    std::vector<VkFormat> depthFormatList {
-      VK_FORMAT_D32_SFLOAT_S8_UINT,
-        VK_FORMAT_D24_UNORM_S8_UINT
-    };
-
-    VkFormat depthFormat{ VK_FORMAT_UNDEFINED };
-    for (VkFormat& format : depthFormatList)
-    {
-    VkFormatProperties2 formatProperties { .sType = VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2 };
-    vkGetPhysicalDeviceFormatProperties2(devices[deviceIndex], format, &formatProperties);
-    if (formatProperties.formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) 
-    {
-      depthFormat = format;
-      break;
-    }
-    }
-
-    context.m_depthFormat = depthFormat;
-
-    VkImageCreateInfo depthImageCreateInfo {};
-    depthImageCreateInfo.sType          = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    depthImageCreateInfo.imageType      = VK_IMAGE_TYPE_2D;
-    depthImageCreateInfo.format         = depthFormat;
-    depthImageCreateInfo.extent.width   = context.m_swapchain_extent.width; 
-    depthImageCreateInfo.extent.height  = context.m_swapchain_extent.height; 
-    depthImageCreateInfo.extent.depth   = 1; 
-    depthImageCreateInfo.mipLevels      = 1;
-    depthImageCreateInfo.arrayLayers    = 1;
-    depthImageCreateInfo.samples        = VK_SAMPLE_COUNT_1_BIT;
-    depthImageCreateInfo.tiling         = VK_IMAGE_TILING_OPTIMAL;
-    depthImageCreateInfo.usage          = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    depthImageCreateInfo.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-
-    VmaAllocationCreateInfo allocCreateInfo{
-      .flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
-        .usage = VMA_MEMORY_USAGE_AUTO
-    };
-
-    vmaCreateImage(context.m_allocator, &depthImageCreateInfo, &allocCreateInfo,
-               &context.m_depthImage, &context.m_depthAllocation, nullptr);
-
-    VkImageViewCreateInfo depthViewCreateInfo{};
-    depthViewCreateInfo.sType                         = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    depthViewCreateInfo.image                          = context.m_depthImage;
-    depthViewCreateInfo.viewType                       = VK_IMAGE_VIEW_TYPE_2D;
-    depthViewCreateInfo.format                         = context.m_depthFormat;
-    depthViewCreateInfo.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_DEPTH_BIT;
-    depthViewCreateInfo.subresourceRange.baseMipLevel   = 0;
-    depthViewCreateInfo.subresourceRange.levelCount     = 1;
-    depthViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-    depthViewCreateInfo.subresourceRange.layerCount     = 1;
-
-    if (vkCreateImageView(context.m_device, &depthViewCreateInfo, nullptr, &context.m_depthImageView) != VK_SUCCESS)
-    {
-      throw std::runtime_error("failed to create depth image view\n");
-    }
+    createSwapchain(context, window);
   }
 
-  void destoryContext(Context &context)
+  void recreateSwapchain(Context &context, Window &window)
   {
+    vkDeviceWaitIdle(context.m_device);
+    destroySwapchain(context);
+    createSwapchain(context, window);
+  }
 
-    if (context.m_depthImageView != VK_NULL_HANDLE)
-      vkDestroyImageView(context.m_device, context.m_depthImageView, nullptr);
-
+  void destroyContext(Context &context)
+  {
+    destroySwapchain(context); 
     if (context.m_allocator != VK_NULL_HANDLE)
       vmaDestroyAllocator(context.m_allocator);
-
-    for (VkImageView view : context.m_swapchainImageViews)
-      if (view != VK_NULL_HANDLE)
-        vkDestroyImageView(context.m_device, view, nullptr);
-
-    if (context.m_swapchain != VK_NULL_HANDLE)
-      vkDestroySwapchainKHR(context.m_device, context.m_swapchain, nullptr);
 
     if (context.m_surface != VK_NULL_HANDLE)
       vkDestroySurfaceKHR(context.m_instance, context.m_surface, nullptr);
@@ -321,4 +377,5 @@ namespace n_context {
     if (context.m_instance != VK_NULL_HANDLE)
       vkDestroyInstance(context.m_instance, nullptr);
   }
+
 }

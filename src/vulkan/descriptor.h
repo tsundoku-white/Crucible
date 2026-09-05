@@ -17,6 +17,7 @@ struct Descriptor
 
 namespace n_descriptor
 {
-  void createDescriptor(Descriptor &descriptor, Context &context, Buffer &uboBuffer, Buffer &ssboBuffer, uint32_t frameCount);
+  void createDescriptorSets(Descriptor &descriptor, Context &context, VkDescriptorSetLayout layout,
+      Buffer &uboBuffer, Buffer &ssboBuffer, uint32_t frameCount);
   void destoryDescriptor(Descriptor &descriptor, Context &context);
 }
