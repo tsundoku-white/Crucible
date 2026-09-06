@@ -94,8 +94,6 @@ namespace n_resource
           for (size_t i = 0; i < vertexCount; i++)
             mesh.m_index_data.push_back(baseVertex + static_cast<uint32_t>(i));
         }
-      std::print("vectex data: {}\n", vertexCount);
-      std::print("index data:  {}\n", mesh.m_index_data.size());
       }
     }
     cgltf_free(data);

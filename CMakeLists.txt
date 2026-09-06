@@ -64,8 +64,9 @@ FetchContent_MakeAvailable(VulkanMemoryAllocator CGLTF GLM GLFW STB)
 
 add_executable(Crucible
   ## main
-  src/main.cc
+  #src/main.cc
 
+  bench/stress_test.cc
   ## core 
   src/core/i_render.cc
   src/core/i_resource.cc

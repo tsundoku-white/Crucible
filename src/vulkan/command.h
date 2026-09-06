@@ -1,6 +1,7 @@
 #pragma once
 
 #include "src/core/pch.h"
+#include <cstdint>
 
 struct Context;
 struct Pipeline;

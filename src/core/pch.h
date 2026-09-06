@@ -43,12 +43,12 @@ static constexpr bool g_debug = false;
 #include <stdexcept>
 #include <format>
 
-inline void printProgressBar(int current, int total) {
+inline void printProgressBar(std::string title, int current, int total) {
   int bar_width = 25; 
   float progress = static_cast<float>(current) / total;
   if (progress > 1.0f) progress = 1.0f;                              
   int filled_length = static_cast<int>(bar_width * progress + 0.5f);
-  std::print("\r["); 
+  std::print("\r{} [", title); 
   for (int i = 0; i < bar_width; ++i) {
     if (i < filled_length) std::print("#");
     else std::print("_");
@@ -56,6 +56,6 @@ inline void printProgressBar(int current, int total) {
   std::print("] {:.1f}%", progress * 100.0f);
   std::fflush(stdout);
 
-  if (current + 1 == total)
+if (current >= total)
     std::print("\n");
 }

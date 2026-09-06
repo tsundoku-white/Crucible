@@ -92,7 +92,9 @@ namespace n_context {
     swapchainCreateInfo.imageUsage        = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     swapchainCreateInfo.preTransform      = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
     swapchainCreateInfo.compositeAlpha    = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    swapchainCreateInfo.presentMode       = VK_PRESENT_MODE_FIFO_KHR;
+    swapchainCreateInfo.presentMode       = context.m_vsyncEnabled ?
+                                             VK_PRESENT_MODE_FIFO_KHR :
+                                             VK_PRESENT_MODE_IMMEDIATE_KHR;
 
     if (vkCreateSwapchainKHR(context.m_device, &swapchainCreateInfo, nullptr, &context.m_swapchain))
       throw std::runtime_error("failed to create swapchain\n");

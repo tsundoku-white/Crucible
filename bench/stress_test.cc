@@ -26,30 +26,33 @@ int main()
 
   Entity freeCam = registery.createEntity();
   Transform camTransform{};
-  camTransform.m_location = glm::vec3(0, 0, 3);
+  camTransform.m_location = glm::vec3(0, 0, 20);
   registery.add<Transform>(freeCam.getId(), camTransform);
   registery.add<Camera   >(freeCam.getId(), Camera{}   );
 
-  Entity box0 = registery.createEntity();
-  registery.add<Transform>(box0.getId(), Transform{});
+  constexpr int   GRID_SIZE = 20;
+  constexpr float GRID_SPACING = 2.5f;
+  constexpr float GRID_OFFSET  = (GRID_SIZE - 1) * GRID_SPACING * 0.5f;
 
-  Model model{.m_path = MODEL_PATH "cube.glb"};
-  n_resource::loadMesh(model.m_mesh_meta_data, model.m_path); 
-  registery.add<Model>(box0.getId(), model);
+  for (int x = 0; x < GRID_SIZE; ++x)
+  {
+    for (int y = 0; y < GRID_SIZE; ++y)
+    {
+      for (int z = 0; z < GRID_SIZE; ++z)
+      {
+        Entity box = registery.createEntity();
+        registery.add<Transform>(box.getId(), Transform{.m_location = {
+          x * GRID_SPACING - GRID_OFFSET,
+          y * GRID_SPACING - GRID_OFFSET,
+          z * GRID_SPACING - GRID_OFFSET
+        }});
 
-  Entity box1 = registery.createEntity();
-  registery.add<Transform>(box1.getId(), Transform{.m_location = {3,0,0}});
-
-  Model model1{.m_path = MODEL_PATH "cube.glb"};
-  n_resource::loadMesh(model1.m_mesh_meta_data, model1.m_path); 
-  registery.add<Model>(box1.getId(), model);
-
-  Entity box2 = registery.createEntity();
-  registery.add<Transform>(box2.getId(), Transform{.m_location = {-3,0,0}});
-
-  Model model2{.m_path = MODEL_PATH "cube.glb"};
-  n_resource::loadMesh(model2.m_mesh_meta_data, model2.m_path); 
-  registery.add<Model>(box2.getId(), model);
+        Model model{.m_path = MODEL_PATH "cube.glb"};
+        n_resource::loadMesh(model.m_mesh_meta_data, model.m_path);
+        registery.add<Model>(box.getId(), model);
+      }
+    }
+  }
 
   IResource iResource{};
   n_resource::createResource(iResource, registery, context, iRender);

@@ -18,7 +18,7 @@ namespace n_resource
   void updateCache(IResource &iResource, Registery &registery, Context &context, IRender &iRender)
   {
     auto &all_entities = registery.getEntityView();
-
+    uint32_t loadProg = 0;
     // check change
     if (iResource.m_has_transform.size() != all_entities.size())
     {
@@ -66,6 +66,8 @@ namespace n_resource
         else
           iResource.m_model_cache.erase(id);
       }
+      loadProg++;
+      printProgressBar("Updating cache", loadProg, all_entities.size());
     }
   }
 
@@ -155,7 +157,6 @@ namespace n_resource
   void createResource(IResource &iResource, Registery &registery, Context &context, IRender &iRender)
   {
     auto &all_entities = registery.getEntityView();
-    uint32_t loadProg = 0;
 
     iResource.m_context   = &context;
     iResource.m_registery = &registery;
@@ -178,7 +179,8 @@ namespace n_resource
     iResource.m_model_cache.clear();
 
     n_command::createCommand(iResource.m_command, context, iRender);
-    
+
+    uint32_t loadProg = 0;
     for (size_t e = 0; e < all_entities.size(); e++)
     {
       EntityID id = all_entities[e];
@@ -212,8 +214,20 @@ namespace n_resource
 
       if (has_camera)
         iResource.m_camera_cache[id] = &registery.get<Camera>(id);
+
+      // NOTE: createResource must NOT call updateCache() here.
+      // updateCache() checks `m_has_transform.size() != all_entities.size()`
+      // and calls createResource() again when they don't match — which is
+      // true on every iteration except the very last one, since this loop
+      // fills m_has_transform one entity at a time. That was infinite
+      // recursion (createResource -> updateCache -> createResource -> ...),
+      // blowing the call stack and crashing with SIGSEGV before the
+      // progress bar could advance past entity 0. This loop already does
+      // everything updateCache would do, directly — updateCache is a
+      // separate incremental-diff step for later, not a helper to call
+      // from inside here.
       loadProg++;
-      printProgressBar(loadProg, all_entities.size());
+      printProgressBar("Loading resources", loadProg, all_entities.size());
     }
 
     // Initialize UBO and SSBO vectors: one slot per entity, indexed by EntityID
@@ -221,17 +235,6 @@ namespace n_resource
     iResource.ubos.resize(entity_count);
     iResource.ssbos.resize(entity_count);
 
-    // Single GPU buffer per type, sized to hold every entity's slot.
-    // Allocate at least one slot's worth so the buffer/descriptor are
-    // never created with size 0 when the scene starts out empty.
-    //
-    // ssboBuffer holds a tightly-packed array of glm::mat4 (one per
-    // model-bearing entity, indexed by gl_InstanceIndex in the shader:
-    // `layout(std430) buffer ModelSSBO { mat4 model[]; }`). That is NOT
-    // the same stride as ShaderStorageBufferObject (which is 96 bytes
-    // with alignas(16), vs. 64 bytes per bare mat4) — sizing this with
-    // sizeof(ShaderStorageBufferObject) would make the shader read the
-    // wrong bytes for every instance past the first.
     size_t buffer_slots = entity_count > 0 ? entity_count : 1;
     n_buffer::createUniformBuffer(iResource.uboBuffer, context,
         sizeof(UniformBufferObject) * buffer_slots);
@@ -248,16 +251,9 @@ namespace n_resource
 
   void renderResourceUpdate(IResource &iResource, IRender &iRender)
   {
-    // Pick up any entity/component changes once per frame (this was
-    // previously being re-run once per entity, which was redundant).
-    updateCache(iResource, *iResource.m_registery, *iResource.m_context, iRender);
 
     auto &allEntities = iResource.m_registery->getEntityView();
 
-    // Compact, contiguous list of model matrices in the same order
-    // they'll be drawn — this order IS gl_InstanceIndex in the shader,
-    // so it must not have gaps the way the sparse per-EntityID ssbos
-    // map/vector does.
     std::vector<glm::mat4> modelMatrices;
     modelMatrices.reserve(allEntities.size());
 
@@ -275,17 +271,10 @@ namespace n_resource
 
     iResource.m_modelInstanceCount = static_cast<uint32_t>(modelMatrices.size());
 
-    // Only now, after every entity has had a chance to see the dirty
-    // flag, is it safe to clear it — clearing it inside the per-entity
-    // update functions meant only the first matching entity each frame
-    // ever got recomputed.
     iResource.m_dirty_transform = false;
     iResource.m_dirty_camera    = false;
     iResource.m_dirty_model     = false;
 
-    // Single bulk upload per type: each slot in ubos already lives at
-    // index == EntityID (grown as needed in cameraUpdate), so one memcpy
-    // keeps every camera's data at its correct offset in the shared UBO.
     if (!iResource.ubos.empty())
     {
       void *data;
@@ -297,9 +286,6 @@ namespace n_resource
           iResource.uboBuffer.m_allocation);
     }
 
-    // Upload the compact model-matrix array; this must stay a
-    // tightly-packed glm::mat4 array to match the shader's
-    // `layout(std430) buffer ModelSSBO { mat4 model[]; }`.
     if (!modelMatrices.empty())
     {
       void *data;

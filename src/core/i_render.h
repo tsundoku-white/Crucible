@@ -20,6 +20,7 @@ struct IRender
   uint32_t m_frameIndex = 0;
   bool     m_vsync      = false;
 
+  float    m_timer_debug = 0;
   std::vector<VkFence    > m_fences{};
   std::vector<VkSemaphore> m_imageAcquiredSemaphores{};
   std::vector<VkSemaphore> m_renderCompleteSemaphores{};
