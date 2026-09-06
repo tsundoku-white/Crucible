@@ -82,7 +82,6 @@ namespace n_resource
         transform->m_up       = transform->m_rotation * glm::vec3(0, 1, 0);
         transform->m_right    = transform->m_rotation * glm::vec3(1, 0, 0);
       }
-      iResource.m_dirty_transform = false;
     }
   }
 
@@ -100,32 +99,29 @@ namespace n_resource
 
       if (camera && transform)
       {
-        // Make sure ubos vector has enough elements
-        if (iResource.ubos.empty())
-          iResource.ubos.resize(1);
+        // Make sure ubos vector has a slot for this entity's id
+        if (iResource.ubos.size() <= id)
+          iResource.ubos.resize(id + 1);
 
         float aspect = static_cast<float>(iRender.m_context->m_swapchain_extent.width) / 
           static_cast<float>(iRender.m_context->m_swapchain_extent.height);
 
-        std::print("aspect: {}\n", aspect);
-        iResource.ubos[0].m_projectionMatrix = glm::perspective(
+        iResource.ubos[id].m_projectionMatrix = glm::perspective(
             glm::radians(camera->m_fov),
             aspect,
             camera->m_minViewDistance,
             camera->m_maxViewDistance
             );
 
-        iResource.ubos[0].m_projectionMatrix[1][1] *= -1;
+        iResource.ubos[id].m_projectionMatrix[1][1] *= -1;
 
-        iResource.ubos[0].m_viewMatrix = glm::lookAt(
+        iResource.ubos[id].m_viewMatrix = glm::lookAt(
             transform->m_location,
             transform->m_forward + transform->m_location,
             transform->m_up
             );
-        std::print("updated camera\n");
       }
     }
-    iResource.m_dirty_camera = false;
   }
 
   void modelUpdate(IResource &iResource, EntityID id)
@@ -142,8 +138,8 @@ namespace n_resource
 
       if (model && transform)
       {
-        if (iResource.ssbos.empty())
-          iResource.ssbos.resize(1);
+        if (iResource.ssbos.size() <= id)
+          iResource.ssbos.resize(id + 1);
 
         glm::mat4 matrix(1.f);
 
@@ -151,15 +147,15 @@ namespace n_resource
         matrix = matrix * glm::toMat4(transform->m_rotation);
         matrix = glm::scale(matrix, transform->m_scale);
 
-        iResource.ssbos[0].m_modelsMatrix = matrix;
+        iResource.ssbos[id].m_modelsMatrix = matrix;
       }
     }
-    iResource.m_dirty_model = false;
   }
 
   void createResource(IResource &iResource, Registery &registery, Context &context, IRender &iRender)
   {
     auto &all_entities = registery.getEntityView();
+    uint32_t loadProg = 0;
 
     iResource.m_context   = &context;
     iResource.m_registery = &registery;
@@ -201,10 +197,14 @@ namespace n_resource
         iResource.m_model_cache[id] = model;
 
         // Create vertex and index buffers for this model
-        n_buffer::createVertexBuffer(iResource.vertexBuffer, iResource.m_command, context,
-            model->m_mesh_meta_data.m_vertex_data);
-        n_buffer::createIndexBuffer(iResource.indexBuffer, iResource.m_command, context,
-            model->m_mesh_meta_data.m_index_data);
+        if (!iResource.m_isBufferCreated)
+        {
+          n_buffer::createVertexBuffer(iResource.vertexBuffer, iResource.m_command, context,
+              model->m_mesh_meta_data.m_vertex_data);
+          n_buffer::createIndexBuffer(iResource.indexBuffer, iResource.m_command, context,
+              model->m_mesh_meta_data.m_index_data);
+          iResource.m_isBufferCreated = true;
+        }
       }
 
       if (has_transform)
@@ -212,21 +212,34 @@ namespace n_resource
 
       if (has_camera)
         iResource.m_camera_cache[id] = &registery.get<Camera>(id);
+      loadProg++;
+      printProgressBar(loadProg, all_entities.size());
     }
 
-    // Initialize UBO and SSBO vectors
-    iResource.ubos.resize(1);
-    iResource.ssbos.resize(1);
+    // Initialize UBO and SSBO vectors: one slot per entity, indexed by EntityID
+    size_t entity_count = all_entities.size();
+    iResource.ubos.resize(entity_count);
+    iResource.ssbos.resize(entity_count);
 
-    // Create buffers 
-    iResource.uboBuffer.resize(1);
-    iResource.ssboBuffer.resize(1);
-
-    n_buffer::createUniformBuffer(iResource.uboBuffer[0], context, sizeof(UniformBufferObject));
-    n_buffer::createStorageBuffer(iResource.ssboBuffer[0], context, sizeof(ShaderStorageBufferObject));
+    // Single GPU buffer per type, sized to hold every entity's slot.
+    // Allocate at least one slot's worth so the buffer/descriptor are
+    // never created with size 0 when the scene starts out empty.
+    //
+    // ssboBuffer holds a tightly-packed array of glm::mat4 (one per
+    // model-bearing entity, indexed by gl_InstanceIndex in the shader:
+    // `layout(std430) buffer ModelSSBO { mat4 model[]; }`). That is NOT
+    // the same stride as ShaderStorageBufferObject (which is 96 bytes
+    // with alignas(16), vs. 64 bytes per bare mat4) — sizing this with
+    // sizeof(ShaderStorageBufferObject) would make the shader read the
+    // wrong bytes for every instance past the first.
+    size_t buffer_slots = entity_count > 0 ? entity_count : 1;
+    n_buffer::createUniformBuffer(iResource.uboBuffer, context,
+        sizeof(UniformBufferObject) * buffer_slots);
+    n_buffer::createStorageBuffer(iResource.ssboBuffer, context,
+        sizeof(glm::mat4) * buffer_slots);
 
     n_descriptor::createDescriptorSets(iResource.m_descriptor, context, iRender.m_pipeline.m_descriptorLayout,
-        iResource.uboBuffer[0], iResource.ssboBuffer[0], iRender.m_maxFramesInFlight);
+        iResource.uboBuffer, iResource.ssboBuffer, iRender.m_maxFramesInFlight);
 
     iResource.m_dirty_transform = true;
     iResource.m_dirty_camera    = true;
@@ -235,36 +248,67 @@ namespace n_resource
 
   void renderResourceUpdate(IResource &iResource, IRender &iRender)
   {
-    auto &all_entities = iResource.m_registery->getEntityView();
+    // Pick up any entity/component changes once per frame (this was
+    // previously being re-run once per entity, which was redundant).
+    updateCache(iResource, *iResource.m_registery, *iResource.m_context, iRender);
 
-    for (size_t e = 0; e < all_entities.size(); e++)
+    auto &allEntities = iResource.m_registery->getEntityView();
+
+    // Compact, contiguous list of model matrices in the same order
+    // they'll be drawn — this order IS gl_InstanceIndex in the shader,
+    // so it must not have gaps the way the sparse per-EntityID ssbos
+    // map/vector does.
+    std::vector<glm::mat4> modelMatrices;
+    modelMatrices.reserve(allEntities.size());
+
+    for (size_t e = 0; e < allEntities.size(); e++)
     {
-      EntityID id = all_entities[e]; 
+      EntityID id = allEntities[e];
 
-      updateCache(iResource, *iResource.m_registery, *iResource.m_context, iRender);
       transformUpdate(iResource, id);
       cameraUpdate(iResource, iRender, id);
       modelUpdate(iResource, id);
 
-      if (!iResource.ubos.empty() && !iResource.uboBuffer.empty())
-      {
-        void* data;
-        vmaMapMemory(iRender.m_context->m_allocator, 
-            iResource.uboBuffer[0].m_allocation, &data);
-        memcpy(data, &iResource.ubos[0], sizeof(UniformBufferObject));
-        vmaUnmapMemory(iRender.m_context->m_allocator, 
-            iResource.uboBuffer[0].m_allocation);
-      }
+      if (iResource.m_model_cache.find(id) != iResource.m_model_cache.end())
+        modelMatrices.push_back(iResource.ssbos[id].m_modelsMatrix);
+    }
 
-      if (!iResource.ssbos.empty() && !iResource.ssboBuffer.empty())
-      {
-        void* data;
-        vmaMapMemory(iRender.m_context->m_allocator, 
-            iResource.ssboBuffer[0].m_allocation, &data);
-        memcpy(data, &iResource.ssbos[0], sizeof(ShaderStorageBufferObject));
-        vmaUnmapMemory(iRender.m_context->m_allocator, 
-            iResource.ssboBuffer[0].m_allocation);
-      }
+    iResource.m_modelInstanceCount = static_cast<uint32_t>(modelMatrices.size());
+
+    // Only now, after every entity has had a chance to see the dirty
+    // flag, is it safe to clear it — clearing it inside the per-entity
+    // update functions meant only the first matching entity each frame
+    // ever got recomputed.
+    iResource.m_dirty_transform = false;
+    iResource.m_dirty_camera    = false;
+    iResource.m_dirty_model     = false;
+
+    // Single bulk upload per type: each slot in ubos already lives at
+    // index == EntityID (grown as needed in cameraUpdate), so one memcpy
+    // keeps every camera's data at its correct offset in the shared UBO.
+    if (!iResource.ubos.empty())
+    {
+      void *data;
+      vmaMapMemory(iRender.m_context->m_allocator,
+          iResource.uboBuffer.m_allocation, &data);
+      memcpy(data, iResource.ubos.data(),
+          sizeof(UniformBufferObject) * iResource.ubos.size());
+      vmaUnmapMemory(iRender.m_context->m_allocator,
+          iResource.uboBuffer.m_allocation);
+    }
+
+    // Upload the compact model-matrix array; this must stay a
+    // tightly-packed glm::mat4 array to match the shader's
+    // `layout(std430) buffer ModelSSBO { mat4 model[]; }`.
+    if (!modelMatrices.empty())
+    {
+      void *data;
+      vmaMapMemory(iRender.m_context->m_allocator,
+          iResource.ssboBuffer.m_allocation, &data);
+      memcpy(data, modelMatrices.data(),
+          sizeof(glm::mat4) * modelMatrices.size());
+      vmaUnmapMemory(iRender.m_context->m_allocator,
+          iResource.ssboBuffer.m_allocation);
     }
   }
 
@@ -283,12 +327,10 @@ namespace n_resource
     n_buffer::destroyBuffer(iResource.vertexBuffer, *iResource.m_context);
     n_buffer::destroyBuffer(iResource.indexBuffer , *iResource.m_context);
 
-    for (auto &buffer : iResource.uboBuffer)  n_buffer::destroyBuffer(buffer, *iResource.m_context);
-    for (auto &buffer : iResource.ssboBuffer) n_buffer::destroyBuffer(buffer, *iResource.m_context);
+    n_buffer::destroyBuffer(iResource.uboBuffer,  *iResource.m_context);
+    n_buffer::destroyBuffer(iResource.ssboBuffer, *iResource.m_context);
 
     iResource.ubos.clear();
     iResource.ssbos.clear();
-    iResource.uboBuffer.clear();
-    iResource.ssboBuffer.clear();
   }
 }

@@ -69,6 +69,7 @@ add_executable(Crucible
   ## core 
   src/core/i_render.cc
   src/core/i_resource.cc
+  src/core/i_input.cc
 
   ## resources
   src/resources/load_mesh.cc

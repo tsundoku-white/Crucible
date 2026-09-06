@@ -9,6 +9,7 @@ namespace n_render
 {
   void createSyncObjects(IRender &iRender)
   {
+    auto m_last_frame_time = std::chrono::high_resolution_clock::now();
     uint32_t imageCount;
     vkGetSwapchainImagesKHR(iRender.m_context->m_device,
         iRender.m_context->m_swapchain,
@@ -69,10 +70,14 @@ namespace n_render
 
     n_pipeline::createPipeline(iRender.m_pipeline, *iRender.m_context);
     createSyncObjects(iRender);
+    iRender.m_last_frame_time = std::chrono::high_resolution_clock::now();
   }
 
   void drawIRender(IRender &iRender, IResource &iResource)
   {
+    auto frame_start = std::chrono::high_resolution_clock::now();
+  iRender.m_deltaTime = std::chrono::duration<float>(frame_start - iRender.m_last_frame_time).count();
+
     // Wait for previous frame
     vkWaitForFences(iRender.m_context->m_device, 1,
         &iRender.m_fences[iRender.m_frameIndex], true, UINT64_MAX);
@@ -101,11 +106,13 @@ namespace n_render
     std::vector<DrawInfo> drawInfos;
     DrawInfo drawInfo{};
     drawInfo.index_count = iResource.indexBuffer.m_size / sizeof(uint32_t);
-    drawInfo.instance_count = 1;
+    drawInfo.instance_count = iResource.m_modelInstanceCount;
     drawInfo.first_index = 0;
     drawInfo.vertex_offset = 0;
     drawInfo.first_instance = 0;
     drawInfos.push_back(drawInfo);
+
+    std::vector<Buffer> shaderDataBuffers{ iResource.uboBuffer };
 
     n_command::recordPrimary(
         iResource.m_command,
@@ -114,7 +121,7 @@ namespace n_render
         iResource.m_descriptor,
         iResource.vertexBuffer,
         iResource.indexBuffer,
-        iResource.uboBuffer,
+        shaderDataBuffers,
         iRender.m_frameIndex,
         imageIndex,
         drawInfos
@@ -171,6 +178,7 @@ namespace n_render
     }
 
     // Advance frame
+    iRender.m_last_frame_time = frame_start;
     iRender.m_frameIndex = (iRender.m_frameIndex + 1) % iRender.m_maxFramesInFlight;
   }
 

@@ -15,7 +15,7 @@ layout(std140, set = 0, binding = 0) uniform CameraUBO
 // indicesCount) aren't needed here and are simply unused tail bytes.
 layout(std430, set = 0, binding = 1) readonly buffer ModelSSBO
 {
-  mat4 model;
+  mat4 model[];
 } ssbo;
 
 // ---- Vertex attributes ----
@@ -33,7 +33,7 @@ layout(location = 1) out vec2 fragUV;
 
 void main()
 {
-  mat4 modelMatrix = ssbo.model;
+  mat4 modelMatrix = ssbo.model[gl_InstanceIndex];
 
   vec4 worldPos = modelMatrix * vec4(inPosition, 1.0);
   gl_Position = ubo.projection * ubo.view * worldPos;

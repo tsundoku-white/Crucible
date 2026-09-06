@@ -29,9 +29,6 @@ namespace n_command
   void createCommand(Command &command, Context &context, IRender &render);
   void destroyCommand(Command &command, Context &context);
 
-  // vertexBuffer / indexBuffer: the actual mesh data to draw.
-  // shaderDataBuffers: per-frame buffer holding a VkDeviceAddress pushed to the shader
-  //   (must have at least frameIndex+1 entries; index it the same way command.m_buffers is indexed).
   void recordPrimary(Command &command, Context &context, Pipeline &pipeline, Descriptor &descriptor,
       Buffer &vertexBuffer, Buffer &indexBuffer, std::vector<Buffer> &shaderDataBuffers,
       uint32_t frameIndex, uint32_t imageIndex, std::vector<DrawInfo> &drawInfos);
