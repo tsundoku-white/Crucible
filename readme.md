@@ -31,6 +31,14 @@ As of current the is not alot of Examples but soon to come...
 ## Install?
 install scripts are in install/ for windows and linux.
 
+## LLMS
+I use LLMS for speed of development, for explinations on subject that im not preficiant in any and all code is written by me exept.
+
+LLMS are used for stress testing code.
+
+## Resource
+This is a learing project in some respecs i have a resource.md of most or all websites i use to grasp cpp and vulkan development.
+
 ## License
 Copyright (c) 2026 tsundoku-white 
 Licensed under the MIT License. See [LICENSE](./docs/license) for details.

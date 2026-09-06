@@ -23,7 +23,9 @@ int main()
   Registery registery;
 
   Entity freeCam = registery.createEntity();
-  registery.add<Transform>(freeCam.getId(), Transform{});
+  Transform camTransform{};
+  camTransform.m_location = glm::vec3(0, 0, 3);
+  registery.add<Transform>(freeCam.getId(), camTransform);
   registery.add<Camera   >(freeCam.getId(), Camera{}   );
 
   Entity box0 = registery.createEntity();
@@ -39,7 +41,6 @@ int main()
   while (!n_window::shouldClose(window))
   {
     n_window::pollEvents(); 
-    n_resource::renderResourceUpdate(iResource, iRender);
     n_render::drawIRender(iRender, iResource);
   }
 

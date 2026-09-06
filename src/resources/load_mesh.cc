@@ -1,92 +1,103 @@
-// load_mesh.cc
 #include "load_mesh.h"
-#include <cgltf.h>
+#include <print>
 #include <stdexcept>
-#include <cstring>
+
+#include "cgltf.h"
 
 namespace n_resource
 {
   void loadMesh(MeshData &mesh, std::string path)
   {
-    cgltf_options options{};
-    cgltf_data* data = nullptr;
+    cgltf_options options = {};
+    cgltf_data*   data    = NULL;
 
-    if (cgltf_parse_file(&options, path.c_str(), &data) != cgltf_result_success)
-      throw std::runtime_error("failed to parse glTF file: " + path);
+    cgltf_result result = cgltf_parse_file(&options, path.c_str(), &data);
+    if (result != cgltf_result_success)
+    {
+      throw std::runtime_error("failed to load mesh");
+    }
 
-    if (cgltf_load_buffers(&options, data, path.c_str()) != cgltf_result_success)
+    result = cgltf_load_buffers(&options, data, path.c_str());
+    if (result != cgltf_result_success)
     {
       cgltf_free(data);
-      throw std::runtime_error("failed to load glTF buffers: " + path);
+      return;
     }
 
-    mesh.m_vertex_data.clear();
-    mesh.m_index_data.clear();
-
-    // Just take the first mesh / first primitive for now.
-    if (data->meshes_count == 0 || data->meshes[0].primitives_count == 0)
+    for (size_t m = 0; m < data->meshes_count; m++)
     {
-      cgltf_free(data);
-      throw std::runtime_error("glTF file has no mesh primitives: " + path);
+      cgltf_mesh *currentMesh = &data->meshes[m];
+
+      for (size_t p = 0; p < currentMesh->primitives_count; p++)
+      {
+        cgltf_primitive *primitive = &currentMesh->primitives[p];
+
+        cgltf_accessor *positionAccessor = nullptr;
+        cgltf_accessor *normalAccessor   = nullptr;
+        cgltf_accessor *uvAccessor       = nullptr;
+
+        for (size_t a = 0; a < primitive->attributes_count; a++)
+        {
+          cgltf_attribute *attr = &primitive->attributes[a];
+
+          switch (attr->type)
+          {
+            case cgltf_attribute_type_position:
+              positionAccessor = attr->data;
+              break;
+            case cgltf_attribute_type_normal:
+              normalAccessor = attr->data;
+              break;
+            case cgltf_attribute_type_texcoord:
+              if (!uvAccessor)
+                uvAccessor = attr->data;
+              break;
+            default:
+              break;
+          }
+        }
+
+        if (!positionAccessor)
+          continue; // primitive has no positions, nothing we can build
+
+        size_t vertexCount = positionAccessor->count;
+        uint32_t baseVertex = static_cast<uint32_t>(mesh.m_vertex_data.size());
+
+        for (size_t i = 0; i < vertexCount; i++)
+        {
+          Vertex vertex = {};
+
+          cgltf_accessor_read_float(positionAccessor, i, &vertex.m_pos.x, 3);
+
+          if (normalAccessor)
+            cgltf_accessor_read_float(normalAccessor, i, &vertex.m_normal.x, 3);
+
+          if (uvAccessor)
+            cgltf_accessor_read_float(uvAccessor, i, &vertex.m_uv.x, 2);
+
+          mesh.m_vertex_data.push_back(vertex);
+        }
+
+        if (primitive->indices)
+        {
+          cgltf_accessor *indexAccessor = primitive->indices;
+          size_t indexCount = indexAccessor->count;
+
+          for (size_t i = 0; i < indexCount; i++)
+          {
+            cgltf_size index = cgltf_accessor_read_index(indexAccessor, i);
+            mesh.m_index_data.push_back(baseVertex + static_cast<uint32_t>(index));
+          }
+        }
+        else
+        {
+          for (size_t i = 0; i < vertexCount; i++)
+            mesh.m_index_data.push_back(baseVertex + static_cast<uint32_t>(i));
+        }
+      std::print("vectex data: {}\n", vertexCount);
+      std::print("index data:  {}\n", mesh.m_index_data.size());
+      }
     }
-
-    cgltf_primitive &prim = data->meshes[0].primitives[0];
-
-    cgltf_accessor *posAccessor = nullptr;
-    cgltf_accessor *normalAccessor = nullptr;
-    cgltf_accessor *uvAccessor = nullptr;
-
-    for (size_t i = 0; i < prim.attributes_count; i++)
-    {
-      cgltf_attribute &attr = prim.attributes[i];
-      if (attr.type == cgltf_attribute_type_position) posAccessor = attr.data;
-      else if (attr.type == cgltf_attribute_type_normal) normalAccessor = attr.data;
-      else if (attr.type == cgltf_attribute_type_texcoord) uvAccessor = attr.data;
-    }
-
-    if (!posAccessor)
-    {
-      cgltf_free(data);
-      throw std::runtime_error("glTF primitive has no POSITION attribute: " + path);
-    }
-
-    size_t vertexCount = posAccessor->count;
-    mesh.m_vertex_data.resize(vertexCount);
-
-    for (size_t i = 0; i < vertexCount; i++)
-    {
-      Vertex &v = mesh.m_vertex_data[i];
-
-      cgltf_accessor_read_float(posAccessor, i, &v.m_pos.x, 3);
-
-      if (normalAccessor)
-        cgltf_accessor_read_float(normalAccessor, i, &v.m_normal.x, 3);
-      else
-        v.m_normal = glm::vec3(0.0f, 0.0f, 0.0f);
-
-      if (uvAccessor)
-        cgltf_accessor_read_float(uvAccessor, i, &v.m_uv.x, 2);
-      else
-        v.m_uv = glm::vec2(0.0f, 0.0f);
-    }
-
-    if (prim.indices)
-    {
-      size_t indexCount = prim.indices->count;
-      mesh.m_index_data.resize(indexCount);
-      for (size_t i = 0; i < indexCount; i++)
-        mesh.m_index_data[i] = static_cast<uint32_t>(cgltf_accessor_read_index(prim.indices, i));
-    }
-    else
-    {
-      // No index buffer in the file — synthesize a trivial 0..N-1 index list.
-      mesh.m_index_data.resize(vertexCount);
-      for (size_t i = 0; i < vertexCount; i++)
-        mesh.m_index_data[i] = static_cast<uint32_t>(i);
-    }
-
-    mesh.m_mesh_path = path;
-
     cgltf_free(data);
   }
 }

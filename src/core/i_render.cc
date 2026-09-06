@@ -44,8 +44,10 @@ namespace n_render
   }
   }
 
-  void recreateSwapchain(IRender &iRender)
+  void recreateSwapchain(IRender &iRender, IResource &iResource)
   {
+    iRender.m_window->m_isResized = false;
+    iResource.m_dirty_camera = true;
     int width = 0, height = 0;
     glfwGetFramebufferSize(iRender.m_window->m_handle, &width, &height);
     while (width == 0 || height == 0) {
@@ -57,6 +59,7 @@ namespace n_render
 
     n_context::destroySwapchain(*iRender.m_context);
     n_context::createSwapchain(*iRender.m_context, *iRender.m_window);
+    std::print("resized\n");
   }
 
   void createIRender(IRender &iRender, Context &context, Window &window)
@@ -85,7 +88,7 @@ namespace n_render
         &imageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-      recreateSwapchain(iRender);
+      recreateSwapchain(iRender, iResource);
       return;
     }
     vkResetFences(iRender.m_context->m_device, 1, 
@@ -158,8 +161,11 @@ namespace n_render
 
     result = vkQueuePresentKHR(iRender.m_context->m_queue, &presentInfo);
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-      recreateSwapchain(iRender);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || 
+        result == VK_SUBOPTIMAL_KHR ||
+        iRender.m_window->m_isResized) 
+    {
+      recreateSwapchain(iRender, iResource);
     }  else if (result != VK_SUCCESS) {
       throw std::runtime_error("failed to present swapchain image");
     }

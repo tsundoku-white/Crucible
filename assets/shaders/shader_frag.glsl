@@ -9,8 +9,6 @@ void main()
 {
   vec3 N = normalize(fragNormalWorld);
 
-  // Simple fixed directional light, just to make geometry visually readable
-  // until real lighting/materials are wired up.
   vec3 lightDir = normalize(vec3(0.5, 1.0, 0.3));
   float diffuse = max(dot(N, lightDir), 0.0);
 

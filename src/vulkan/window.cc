@@ -3,6 +3,17 @@
 
 namespace n_window
 {
+  void framebuffer_size_callback(GLFWwindow* window, int width, int height) 
+{
+    Window* win = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    
+    if (win) 
+    {
+      win->m_height     = height;
+      win->m_width      = width;
+      win->m_isResized  = true;
+    }
+}
   void createWindow(Window &window)
   {
     if (!glfwInit())
@@ -15,7 +26,8 @@ namespace n_window
     {
       std::runtime_error("failed to create window\n");
     }
-
+    glfwSetWindowUserPointer(window.m_handle, &window);
+    glfwSetFramebufferSizeCallback(window.m_handle, framebuffer_size_callback);
   }
 
   void destroyWindow(Window &window)              { glfwTerminate();  }

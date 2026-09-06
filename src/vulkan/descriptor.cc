@@ -1,6 +1,6 @@
 #include "descriptor.h"
 #include "src/vulkan/buffer.h"
-#include "src/vulkan/context.h"
+#include "src/core/i_resource.h"
 #include <array>
 #include <cstdint>
 #include <vector>
@@ -8,15 +8,11 @@
 
 namespace n_descriptor
 {
-  // Allocates the pool + per-frame sets against an already-created descriptor
-  // set layout (owned by Pipeline, since the pipeline layout must reference
-  // the same VkDescriptorSetLayout). Call this once buffers actually exist.
   void createDescriptorSets(Descriptor &descriptor, Context &context, VkDescriptorSetLayout layout,
       Buffer &uboBuffer, Buffer &ssboBuffer, uint32_t frameCount)
   {
     descriptor.m_layout = layout;
 
-    // ---- Pool (sized for frameCount sets, 1 UBO + 1 SSBO each) ----
     std::array<VkDescriptorPoolSize, 2> poolSize;
     poolSize[0].type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSize[0].descriptorCount = frameCount;
@@ -33,7 +29,6 @@ namespace n_descriptor
       throw std::runtime_error("failed to create descriptor pool!");
     }
 
-    // ---- Allocate (one set per frame-in-flight, all same layout) ----
     std::vector<VkDescriptorSetLayout> layouts(frameCount, descriptor.m_layout);
     descriptor.m_sets.resize(frameCount);
 
@@ -47,11 +42,6 @@ namespace n_descriptor
       throw std::runtime_error("failed to allocate descriptor sets!");
     }
 
-    // ---- Buffer infos + writes ----
-    // NOTE: every frame's set points at the SAME uboBuffer/ssboBuffer, since
-    // there is currently one shared UBO/SSBO rather than one per frame in
-    // flight. recordPrimary must index shaderDataBuffers[0], not [frameIndex],
-    // to match.
     VkDescriptorBufferInfo uboBufferInfo{};
     uboBufferInfo.buffer  = uboBuffer.m_buffer;
     uboBufferInfo.offset  = 0;
@@ -88,8 +78,6 @@ namespace n_descriptor
 
   void destoryDescriptor(Descriptor &descriptor, Context &context)
   {
-    // The layout is owned by Pipeline now (it must outlive/match the pipeline
-    // layout), so only the pool (and the sets allocated from it) belong here.
     if (descriptor.m_pool != VK_NULL_HANDLE)
       vkDestroyDescriptorPool(context.m_device, descriptor.m_pool, nullptr);
 

@@ -1,6 +1,7 @@
 #include "src/core/i_resource.h"
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
+#include <print>
 #include <src/core/i_render.h>
 #include <src/core/pch.h>
 #include <src/ecs/entity.h>
@@ -13,23 +14,6 @@
 
 namespace n_resource
 {
-  struct alignas(16) UniformBufferObject
-  {
-    // camera projection
-    glm::mat4 m_projectionMatrix;
-    glm::mat4 m_viewMatrix;
-  };
-
-  struct alignas(16) ShaderStorageBufferObject
-  {
-    // models
-    glm::mat4 m_modelsMatrix = glm::mat4(1.f);
-    size_t    m_modelCount   = 0;
-
-    // textures
-    int32_t   m_indices       = 0;
-    size_t    m_indicesCount  = 0;
-  };
 
   void updateCache(IResource &iResource, Registery &registery, Context &context, IRender &iRender)
   {
@@ -123,8 +107,9 @@ namespace n_resource
         float aspect = static_cast<float>(iRender.m_context->m_swapchain_extent.width) / 
           static_cast<float>(iRender.m_context->m_swapchain_extent.height);
 
+        std::print("aspect: {}\n", aspect);
         iResource.ubos[0].m_projectionMatrix = glm::perspective(
-            camera->m_fov,
+            glm::radians(camera->m_fov),
             aspect,
             camera->m_minViewDistance,
             camera->m_maxViewDistance
@@ -137,6 +122,7 @@ namespace n_resource
             transform->m_forward + transform->m_location,
             transform->m_up
             );
+        std::print("updated camera\n");
       }
     }
     iResource.m_dirty_camera = false;
@@ -156,7 +142,6 @@ namespace n_resource
 
       if (model && transform)
       {
-        // Make sure ssbos vector has enough elements
         if (iResource.ssbos.empty())
           iResource.ssbos.resize(1);
 
@@ -242,6 +227,10 @@ namespace n_resource
 
     n_descriptor::createDescriptorSets(iResource.m_descriptor, context, iRender.m_pipeline.m_descriptorLayout,
         iResource.uboBuffer[0], iResource.ssboBuffer[0], iRender.m_maxFramesInFlight);
+
+    iResource.m_dirty_transform = true;
+    iResource.m_dirty_camera    = true;
+    iResource.m_dirty_model     = true;
   }
 
   void renderResourceUpdate(IResource &iResource, IRender &iRender)
@@ -297,7 +286,6 @@ namespace n_resource
     for (auto &buffer : iResource.uboBuffer)  n_buffer::destroyBuffer(buffer, *iResource.m_context);
     for (auto &buffer : iResource.ssboBuffer) n_buffer::destroyBuffer(buffer, *iResource.m_context);
 
-    // Now safe to clear
     iResource.ubos.clear();
     iResource.ssbos.clear();
     iResource.uboBuffer.clear();

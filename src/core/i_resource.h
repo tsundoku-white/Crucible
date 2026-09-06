@@ -13,6 +13,25 @@ struct Transform;
 struct Camera;
 struct Model;
 
+struct alignas(16) UniformBufferObject
+{
+  // camera projection
+  glm::mat4 m_projectionMatrix;
+  glm::mat4 m_viewMatrix;
+};
+
+struct alignas(16) ShaderStorageBufferObject
+{
+  // models
+  glm::mat4 m_modelsMatrix = glm::mat4(1.f);
+  size_t    m_modelCount   = 0;
+
+  // textures
+  int32_t   m_indices       = 0;
+  size_t    m_indicesCount  = 0;
+};
+
+
 struct IResource
 {
   Context    *m_context;

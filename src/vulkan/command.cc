@@ -6,6 +6,7 @@
 #include <src/vulkan/buffer.h>
 #include <array>
 #include <stdexcept>
+#include <glm/vec3.hpp>
 
 namespace n_command
 {
@@ -96,7 +97,7 @@ namespace n_command
     vkCmdPipelineBarrier2(commandBuffer, &barrierDependencyInfo);
 
     VkClearValue clearColor;
-    clearColor.color = {{1.f, 0.8118f, 0.1373f, 1.0f}};
+    clearColor.color = {{0.07, 0.07, 0.07, 1.0}};
 
     VkRenderingAttachmentInfo colorAttachmentInfo{};
     colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
@@ -142,14 +143,10 @@ namespace n_command
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.m_layout,
         0, 1, &descriptor.m_sets[frameIndex], 0, nullptr);
 
-    // Vertex + index buffers are now two distinct Buffer params, not the same handle.
     VkDeviceSize vOffset{ 0 };
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer.m_buffer, &vOffset);
     vkCmdBindIndexBuffer(commandBuffer, indexBuffer.m_buffer, 0, VK_INDEX_TYPE_UINT32);
 
-    // shaderDataBuffers currently holds ONE shared UBO (see i_resource.cc:
-    // uboBuffer.resize(1)), not one per frame-in-flight, so always index 0
-    // here regardless of frameIndex.
     vkCmdPushConstants(commandBuffer, pipeline.m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0,
         sizeof(VkDeviceAddress), &shaderDataBuffers[0].m_address);
 
