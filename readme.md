@@ -9,9 +9,10 @@ Crucible is very inspired by Entt, Bevy and raylib.
 ![Screenshot](./docs/images/screenshot.png)
 
 ## Features
-- ~3D Rendering~
+- 3D Rendering
 - ECS
 - Model loading in .glb file format 
+- same model auto batching
 
 ## Requirment To Run 
 - Vulkan SDK
@@ -39,7 +40,7 @@ I use LLMS for speed of development, for explinations on subject that im not pre
 LLMS are used for stress testing code.
 
 ## Resource
-This is a learing project in some respecs i have a resource.md of most or all websites i use to grasp cpp and vulkan development.
+This is a learing project in some respecs i have a [Resource](./docs/resources.md) of most or all websites i use to grasp cpp and vulkan development.
 
 ## License
 Copyright (c) 2026 tsundoku-white 
