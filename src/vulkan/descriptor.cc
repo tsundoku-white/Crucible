@@ -83,8 +83,5 @@ namespace n_descriptor
 
     if (!descriptor.m_sets.empty())
       descriptor.m_sets.clear();
-
-    descriptor.m_layout = VK_NULL_HANDLE;
-    descriptor.m_pool   = VK_NULL_HANDLE;
   }
 }

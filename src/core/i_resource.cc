@@ -105,18 +105,22 @@ namespace n_resource
         if (iResource.ubos.size() <= id)
           iResource.ubos.resize(id + 1);
 
-        float aspect = static_cast<float>(iRender.m_context->m_swapchain_extent.width) / 
-          static_cast<float>(iRender.m_context->m_swapchain_extent.height);
+        if (iResource.m_dirty_projection)
+        {
+          float aspect = static_cast<float>(iRender.m_context->m_swapchain_extent.width) / 
+            static_cast<float>(iRender.m_context->m_swapchain_extent.height);
 
-        iResource.ubos[id].m_projectionMatrix = glm::perspective(
-            glm::radians(camera->m_fov),
-            aspect,
-            camera->m_minViewDistance,
-            camera->m_maxViewDistance
-            );
+          iResource.ubos[id].m_projectionMatrix = glm::perspective(
+              glm::radians(camera->m_fov),
+              aspect,
+              camera->m_minViewDistance,
+              camera->m_maxViewDistance
+              );
 
-        iResource.ubos[id].m_projectionMatrix[1][1] *= -1;
-
+          iResource.ubos[id].m_projectionMatrix[1][1] *= -1;
+          std::print("updated camera projection\n");
+          iResource.m_dirty_projection = false;
+        }
         iResource.ubos[id].m_viewMatrix = glm::lookAt(
             transform->m_location,
             transform->m_forward + transform->m_location,
@@ -215,22 +219,10 @@ namespace n_resource
       if (has_camera)
         iResource.m_camera_cache[id] = &registery.get<Camera>(id);
 
-      // NOTE: createResource must NOT call updateCache() here.
-      // updateCache() checks `m_has_transform.size() != all_entities.size()`
-      // and calls createResource() again when they don't match — which is
-      // true on every iteration except the very last one, since this loop
-      // fills m_has_transform one entity at a time. That was infinite
-      // recursion (createResource -> updateCache -> createResource -> ...),
-      // blowing the call stack and crashing with SIGSEGV before the
-      // progress bar could advance past entity 0. This loop already does
-      // everything updateCache would do, directly — updateCache is a
-      // separate incremental-diff step for later, not a helper to call
-      // from inside here.
       loadProg++;
       printProgressBar("Loading resources", loadProg, all_entities.size());
     }
 
-    // Initialize UBO and SSBO vectors: one slot per entity, indexed by EntityID
     size_t entity_count = all_entities.size();
     iResource.ubos.resize(entity_count);
     iResource.ssbos.resize(entity_count);
@@ -244,9 +236,10 @@ namespace n_resource
     n_descriptor::createDescriptorSets(iResource.m_descriptor, context, iRender.m_pipeline.m_descriptorLayout,
         iResource.uboBuffer, iResource.ssboBuffer, iRender.m_maxFramesInFlight);
 
-    iResource.m_dirty_transform = true;
-    iResource.m_dirty_camera    = true;
-    iResource.m_dirty_model     = true;
+    iResource.m_dirty_transform   = true;
+    iResource.m_dirty_projection  = true;
+    iResource.m_dirty_camera      = true;
+    iResource.m_dirty_model       = true;
   }
 
   void renderResourceUpdate(IResource &iResource, IRender &iRender)

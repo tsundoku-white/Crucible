@@ -95,6 +95,5 @@ int main()
   n_render::destoryIRender(iRender);
   n_resource::destroyResource(iResource);
   n_context::destroyContext(context);
-  n_window::destroyWindow(window);
-
+  n_window::destroyWindow();
 }

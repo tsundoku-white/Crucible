@@ -1,18 +1,15 @@
 #pragma once
 
 #include "src/core/pch.h"
-#include <vulkan/vulkan_core.h>
-#include <vector>
-#include <cstdint>
 
 struct Buffer;
 struct Context;
 
 struct Descriptor
 {
-  VkDescriptorSetLayout        m_layout = VK_NULL_HANDLE;
+  VkDescriptorSetLayout         m_layout = VK_NULL_HANDLE;
   VkDescriptorPool              m_pool   = VK_NULL_HANDLE;
-  std::vector<VkDescriptorSet>  m_sets   = {};   // one per frame-in-flight
+  std::vector<VkDescriptorSet>  m_sets   = {};
 };
 
 namespace n_descriptor

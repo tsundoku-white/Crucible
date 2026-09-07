@@ -5,6 +5,7 @@
 #include "src/vulkan/window.h"
 #include <iostream>
 #include <print>
+#include <src/core/pch.h>
 #include <src/ecs/registery.h>
 #include "src/ecs/components/transform.h"
 #include "src/ecs/components/camera.h"
@@ -65,6 +66,7 @@ int main()
   static float yaw   = 0.0f;
   static float pitch = 0.0f;
 
+  float time = 0;
   while (!n_window::shouldClose(window))
   {
     float moveAmount = moveSpeed * iRender.m_deltaTime;
@@ -93,11 +95,26 @@ int main()
 
     n_window::pollEvents();
     n_render::drawIRender(iRender, iResource);
+
+    // print debug
+    time += g_frameStats.m_deltaTime;
+    if (time > 1)
+    {
+    std::print(
+        "delta time:    {:.5f}\n"
+        "fps:           {:.2f}\n"
+        "frame time ms: {:.2f}\n"
+        "draw calls /s: {}\n", 
+        g_frameStats.m_deltaTime,
+        g_frameStats.m_fps,
+        g_frameStats.m_frameTimeMs,
+        g_frameStats.m_drawCalls);
+    time = 0;
+    }
   }
   vkDeviceWaitIdle(context.m_device);
   n_render::destoryIRender(iRender);
   n_resource::destroyResource(iResource);
   n_context::destroyContext(context);
-  n_window::destroyWindow(window);
-
+  n_window::destroyWindow();
 }

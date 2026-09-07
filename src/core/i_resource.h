@@ -49,11 +49,12 @@ struct IResource
 
   bool m_dirty_transform  = false;
   bool m_dirty_camera     = false;
+  bool m_dirty_projection = false;
   bool m_dirty_model      = false;
 
   bool m_isBufferCreated = false;
   uint32_t m_total_shared_index_count = 0;
-  uint32_t m_modelInstanceCount = 0; // count of entities with a Model this frame; drives instance_count for the instanced draw, and matches the order model matrices are packed into ssboBuffer (index == gl_InstanceIndex)
+  uint32_t m_modelInstanceCount = 0;
   Buffer vertexBuffer;
   Buffer indexBuffer;
 

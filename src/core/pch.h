@@ -43,6 +43,23 @@ static constexpr bool g_debug = false;
 #include <stdexcept>
 #include <format>
 
+struct FrameStats 
+{
+  double    m_deltaTime   = 0;
+  float     m_fps         = 0;
+  float     m_frameTimeMs = 0;
+  uint32_t  m_drawCalls   = 0;
+};
+
+// frame global data 
+inline FrameStats g_frameStats;
+
+inline void vkCheck(VkResult result, const char* msg) {
+    if (result != VK_SUCCESS) {
+        throw std::runtime_error(msg);
+    }
+}
+
 inline void printProgressBar(std::string title, int current, int total) {
   int bar_width = 25; 
   float progress = static_cast<float>(current) / total;

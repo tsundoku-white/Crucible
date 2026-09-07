@@ -4,13 +4,13 @@
 #include "src/vulkan/window.h"
 #include <print>
 #include <src/core/i_resource.h>
+#include <src/core/pch.h>
 #include <src/vulkan/pipeline.h>
 
 namespace n_render
 {
   void createSyncObjects(IRender &iRender)
   {
-    auto m_last_frame_time = std::chrono::high_resolution_clock::now();
     uint32_t imageCount;
     vkGetSwapchainImagesKHR(iRender.m_context->m_device,
         iRender.m_context->m_swapchain,
@@ -49,7 +49,7 @@ namespace n_render
   void recreateSwapchain(IRender &iRender, IResource &iResource)
   {
     iRender.m_window->m_isResized = false;
-    iResource.m_dirty_camera = true;
+    iResource.m_dirty_projection  = true;
     int width = 0, height = 0;
     glfwGetFramebufferSize(iRender.m_window->m_handle, &width, &height);
     while (width == 0 || height == 0) {
@@ -178,12 +178,10 @@ namespace n_render
       throw std::runtime_error("failed to present swapchain image");
     }
 
-    iRender.m_timer_debug += iRender.m_deltaTime;
-    if (iRender.m_timer_debug > 1)
-    {
-      std::print("fps: {:.2f}\n", 1/iRender.m_deltaTime);
-      iRender.m_timer_debug = 0;
-    }
+    g_frameStats.m_frameTimeMs = iRender.m_deltaTime * 1000;
+    g_frameStats.m_deltaTime   = iRender.m_deltaTime;
+    g_frameStats.m_fps         = 1 / iRender.m_deltaTime;
+    
     // Advance frame
     iRender.m_last_frame_time = frame_start;
     iRender.m_frameIndex = (iRender.m_frameIndex + 1) % iRender.m_maxFramesInFlight;

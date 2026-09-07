@@ -3,6 +3,7 @@
 
 namespace n_window
 {
+  // frame resize call back and just updating the varables that need to change.
   void framebuffer_size_callback(GLFWwindow* window, int width, int height) 
 {
     Window* win = static_cast<Window*>(glfwGetWindowUserPointer(window));
@@ -14,14 +15,20 @@ namespace n_window
       win->m_isResized  = true;
     }
 }
+// creating window
   void createWindow(Window &window)
   {
+    // if glfw is not init error out.
     if (!glfwInit())
     {
       throw std::runtime_error("failed to load glfw lib\n");
     }
+    // enable vulkan 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+
+    // creating window
     window.m_handle = glfwCreateWindow(window.m_width, window.m_height, window.m_name, nullptr, nullptr);
+    // window create failed error out.
     if (!window.m_handle)
     {
       std::runtime_error("failed to create window\n");
@@ -30,7 +37,7 @@ namespace n_window
     glfwSetFramebufferSizeCallback(window.m_handle, framebuffer_size_callback);
   }
 
-  void destroyWindow(Window &window)              { glfwTerminate();  }
+  void destroyWindow()              { glfwTerminate();  }
   void pollEvents()                               { glfwPollEvents(); }
   void setShouldClose(Window &window, bool value) { glfwSetWindowShouldClose(window.m_handle, value); }
   bool shouldClose(Window &window)                { return glfwWindowShouldClose(window.m_handle);    }
