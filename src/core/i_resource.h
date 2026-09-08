@@ -39,14 +39,6 @@ struct IResource
   Command     m_command;
   Descriptor  m_descriptor;
 
-  std::unordered_map<EntityID, bool> m_has_transform;
-  std::unordered_map<EntityID, bool> m_has_camera;
-  std::unordered_map<EntityID, bool> m_has_model;
-
-  std::unordered_map<EntityID, Transform*>  m_transform_cache;
-  std::unordered_map<EntityID, Camera*>     m_camera_cache;
-  std::unordered_map<EntityID, Model*>      m_model_cache;
-
   bool m_dirty_transform  = false;
   bool m_dirty_camera     = false;
   bool m_dirty_projection = false;

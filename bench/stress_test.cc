@@ -71,7 +71,7 @@ int main()
   {
     float moveAmount = moveSpeed * iRender.m_deltaTime;
 
-    Transform &transform = *iResource.m_transform_cache[freeCam.getId()];
+    Transform &transform = registery.get<Transform>(freeCam.getId());
 
     glm::vec2 delta = n_input::mouse_delta(input);
 

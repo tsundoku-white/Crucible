@@ -63,7 +63,10 @@ struct Component_Pool : IPoolBase
         m_sparse[id] = INVALID_COMPONENT_INDEX;
     }
 
+    EntityID entityAt(size_t denseIndex) const { return m_denseToEntity[denseIndex]; }
+    std::vector<T>& view() { return m_denseComponent; }
     const std::vector<T>& view() const { return m_denseComponent; }
+
 private:
     std::vector<size_t>   m_sparse;
     std::vector<T>        m_denseComponent;

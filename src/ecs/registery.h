@@ -59,9 +59,17 @@ struct Registery
       }
 
     template<typename T>
-      const std::vector<T> &getComponentsView() { return getPool<T>().getComponentView(); }
-    const std::vector<EntityID> &getEntityView() const { return m_denceEntityArray; }
-    private:
+  std::vector<T>& viewMutable() { return getPool<T>().view(); }
+
+template<typename T>
+  const std::vector<T>& view() { return getPool<T>().view(); }
+
+template<typename T>
+  EntityID entityAt(size_t denseIndex) { return getPool<T>().entityAt(denseIndex); } 
+
+const std::vector<EntityID> &getEntityView() const { return m_denceEntityArray; }
+
+  private:
     template<typename T>
       Component_Pool<T>& getPool()
       {
