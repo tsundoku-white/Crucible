@@ -27,16 +27,20 @@ My goal is to make a lib that can easily be use by anyone who is willing to code
 Make cool rendering stuff.
 
 10,000 object in one scene at 120fps on the specifired [specs](./docs/target_specs.md).
-and lua based ui layer for like life and sanity.
+Lua based ui layer for like life and sanity.
+
+currently for the app is running at 5k fps.
+
 ## How To Get Started
 As of current the is not alot of Examples but soon to come...
 
 ## Install?
 install scripts are in install/ for windows and linux.
 
+## Progression and soon to come features
+check [Progression](./docs/progressing_path.md) for info on what is happneing and what is planned.
 ## LLMS
 I use LLMS for speed of development, for explinations on subject that im not preficiant in any and all code is written by me exept.
-
 LLMS are used for stress testing code.
 
 ## Resource
