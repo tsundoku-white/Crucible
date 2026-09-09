@@ -61,7 +61,7 @@ int main()
   Input input;
   n_input::create(input, window);
 
-  float moveSpeed = 20.0f;
+  float moveSpeed = 30.0f;
   float mouseSensitivity = 0.1f;
   static float yaw   = 0.0f;
   static float pitch = 0.0f;

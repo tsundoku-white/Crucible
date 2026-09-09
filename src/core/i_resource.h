@@ -4,7 +4,6 @@
 #include "src/ecs/registery.h"
 #include "src/vulkan/buffer.h"
 #include "src/vulkan/command.h"
-#include <memory>
 #include <src/core/i_render.h>
 #include <src/vulkan/context.h>
 #include <src/vulkan/descriptor.h>
@@ -25,17 +24,13 @@ struct alignas(16) ShaderStorageBufferObject
   // models
   glm::mat4 m_modelsMatrix = glm::mat4(1.f);
   size_t    m_modelCount   = 0;
-
-  // textures
-  int32_t   m_indices       = 0;
-  size_t    m_indicesCount  = 0;
 };
-
 
 struct IResource
 {
   Context    *m_context;
   Registery  *m_registery;
+
   Command     m_command;
   Descriptor  m_descriptor;
 
@@ -43,17 +38,21 @@ struct IResource
   bool m_dirty_camera     = false;
   bool m_dirty_projection = false;
   bool m_dirty_model      = false;
+  bool m_dirty_cache      = false;
+  bool m_isBufferCreated  = false;
 
-  bool m_isBufferCreated = false;
   uint32_t m_total_shared_index_count = 0;
   uint32_t m_modelInstanceCount = 0;
+
   Buffer vertexBuffer;
   Buffer indexBuffer;
-
   Buffer uboBuffer;
   Buffer ssboBuffer;
-  std::vector<UniformBufferObject> ubos;
-  std::vector<ShaderStorageBufferObject> ssbos;
+
+  std::vector<UniformBufferObject       > ubos;
+  std::vector<ShaderStorageBufferObject > ssbos;
+
+  std::vector<glm::mat4> m_modelMatrices;
 
 };
 

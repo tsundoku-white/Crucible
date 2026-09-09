@@ -31,7 +31,6 @@ namespace n_buffer
     buffer.m_size   = size;
     buffer.m_mapped = nAllocInfo.pMappedData;
 
-    // Only valid to query once the buffer exists AND was created with this usage bit.
     if (usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
     {
       VkBufferDeviceAddressInfo addInfo{};
@@ -112,11 +111,8 @@ namespace n_buffer
 
   void destroyBuffer(Buffer &buffer, Context &context)
   {
-    if (buffer.m_buffer == VK_NULL_HANDLE) return;
-    vmaDestroyBuffer(context.m_allocator, buffer.m_buffer, buffer.m_allocation);
-    buffer.m_buffer     = VK_NULL_HANDLE;
-    buffer.m_allocation = VK_NULL_HANDLE;
-    buffer.m_mapped     = nullptr;
+    if (buffer.m_buffer != VK_NULL_HANDLE)
+      vmaDestroyBuffer(context.m_allocator, buffer.m_buffer, buffer.m_allocation);
   }
 
   void createUniformBuffer(Buffer &buffer, Context &context, VkDeviceSize size)
