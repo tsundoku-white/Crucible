@@ -62,7 +62,7 @@ namespace n_resource
         context,
         iResource.uboBuffer,
         iResource.ssboBuffer,
-        iResource.m_texture.view,
+        iResource.m_texture.m_view,
         iRender.m_maxFramesInFlight
         );
   } 

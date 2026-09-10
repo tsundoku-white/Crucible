@@ -12,13 +12,13 @@ namespace n_image
   {
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType    = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    viewInfo.image    = texture.image;
+    viewInfo.image    = texture.m_image;
     viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     viewInfo.format   = format;
 
     viewInfo.subresourceRange.aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT;
     viewInfo.subresourceRange.baseMipLevel    = 0;
-    viewInfo.subresourceRange.levelCount      = texture.mipLevels;
+    viewInfo.subresourceRange.levelCount      = texture.m_mipLevels;
     viewInfo.subresourceRange.baseArrayLayer  = 0;
     viewInfo.subresourceRange.layerCount      = 1;
 
@@ -42,7 +42,7 @@ void generateMipmaps(Context &context, Command &command, Texture &texture,
 
   VkImageMemoryBarrier barrier{};
   barrier.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-  barrier.image                           = texture.image;
+  barrier.image                           = texture.m_image;
   barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
   barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
   barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -80,8 +80,8 @@ void generateMipmaps(Context &context, Command &command, Texture &texture,
     blit.dstSubresource.layerCount     = 1;
 
     vkCmdBlitImage(commandBuffer,
-        texture.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        texture.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        texture.m_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        texture.m_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         1, &blit, VK_FILTER_LINEAR);
 
     barrier.oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
@@ -117,13 +117,13 @@ void generateMipmaps(Context &context, Command &command, Texture &texture,
     if (!pixels)
       throw std::runtime_error("failed to load texture image: " + path);
 
-    texture.width  = static_cast<uint32_t>(width);
-    texture.height = static_cast<uint32_t>(height);
+    texture.m_width  = static_cast<uint32_t>(width);
+    texture.m_height = static_cast<uint32_t>(height);
 
-    texture.mipLevels = static_cast<uint32_t>(
+    texture.m_mipLevels = static_cast<uint32_t>(
         std::floor(std::log2(std::max(width, height)))) + 1;
 
-    VkDeviceSize imageSize = static_cast<VkDeviceSize>(texture.width) * texture.height * 4;
+    VkDeviceSize imageSize = static_cast<VkDeviceSize>(texture.m_width) * texture.m_height * 4;
 
     Buffer staging{};
     n_buffer::create_buffer(staging, context, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -136,15 +136,18 @@ void generateMipmaps(Context &context, Command &command, Texture &texture,
     VkImageCreateInfo imageInfo{};
     imageInfo.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType     = VK_IMAGE_TYPE_2D;
-    imageInfo.extent.width  = texture.width;
-    imageInfo.extent.height = texture.height;
+    imageInfo.extent.width  = texture.m_width;
+    imageInfo.extent.height = texture.m_height;
     imageInfo.extent.depth  = 1;
-    imageInfo.mipLevels     = texture.mipLevels;
+    imageInfo.mipLevels     = texture.m_mipLevels;
     imageInfo.arrayLayers   = 1;
     imageInfo.format        = VK_FORMAT_R8G8B8A8_SRGB;
     imageInfo.tiling        = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    imageInfo.usage         = VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+                              VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+                              VK_IMAGE_USAGE_SAMPLED_BIT;
+
     imageInfo.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
     imageInfo.samples       = VK_SAMPLE_COUNT_1_BIT;
 
@@ -152,29 +155,30 @@ imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
 
     vkCheck(vmaCreateImage(context.m_allocator, &imageInfo, &allocInfo,
-          &texture.image, &texture.allocation, nullptr),
+          &texture.m_image, &texture.m_allocation, nullptr),
         "failed to create texture image");
 
     n_buffer::transitionImageLayout(context, command, texture, VK_FORMAT_R8G8B8A8_SRGB,
         VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-    n_buffer::copyBufferToImage(context, command, staging.m_buffer, texture.image, texture.width, texture.height);
+    n_buffer::copyBufferToImage(context, command, staging.m_buffer, texture.m_image,
+        texture.m_width, texture.m_height);
 
     n_buffer::destroyBuffer(staging, context);
     n_image::generateMipmaps(context, command, texture, VK_FORMAT_R8G8B8A8_SRGB,
-    texture.width, texture.height, texture.mipLevels);
+    texture.m_width, texture.m_height, texture.m_mipLevels);
 
-    texture.view = createImageView(context, texture, VK_FORMAT_R8G8B8A8_SRGB);
+    texture.m_view = createImageView(context, texture, VK_FORMAT_R8G8B8A8_SRGB);
   }
   void destroyTexture(Texture &texture, Context &context)
   {
-    if (texture.image != VK_NULL_HANDLE)
-      vkDestroyImage(context.m_device, texture.image, nullptr);
+    if (texture.m_image != VK_NULL_HANDLE)
+      vkDestroyImage(context.m_device, texture.m_image, nullptr);
 
-    if (texture.allocation != VK_NULL_HANDLE)
-      vmaFreeMemory(context.m_allocator, texture.allocation);
+    if (texture.m_allocation != VK_NULL_HANDLE)
+      vmaFreeMemory(context.m_allocator, texture.m_allocation);
 
-    if (texture.view != VK_NULL_HANDLE)
-      vkDestroyImageView(context.m_device, texture.view, nullptr);
+    if (texture.m_view != VK_NULL_HANDLE)
+      vkDestroyImageView(context.m_device, texture.m_view, nullptr);
   }
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "src/core/pch.h"
+#include <cstdint>
 #include <src/vulkan/window.h>
 #include <vulkan/vulkan_core.h>
 #include <vector>  // Add this
@@ -25,8 +26,12 @@ struct Context
   VmaAllocation             m_depthAllocation       = VK_NULL_HANDLE;
   uint32_t                  m_queueFamily           = 0;
 
-  VkSampleCountFlagBits     m_msaaSamples           = VK_SAMPLE_COUNT_1_BIT;
+  VkImage                   m_msaaColorImage        = VK_NULL_HANDLE;
+  VkImageView               m_msaaColorImageView    = VK_NULL_HANDLE;
+  VmaAllocation             m_msaaColorAllocation   = VK_NULL_HANDLE;
 
+  VkSampleCountFlagBits     m_msaaSamples           = VK_SAMPLE_COUNT_1_BIT;
+  uint32_t                  m_msaa                  = 4;
   bool                      m_vsyncEnabled          = false;
 };
 
@@ -37,4 +42,6 @@ namespace n_context
   void createSwapchain(Context &context, Window &window);
   void destroySwapchain(Context &context);
   void recreateSwapchain(Context &context, Window &window); 
+  VkSampleCountFlagBits getMaxUsableSampleCount(Context &context);
+
 }

@@ -57,19 +57,32 @@ namespace n_command
 
     vkCheck(vkBeginCommandBuffer(commandBuffer, &beginInfo), 
         "failed to begin recording command buffer");
+ 
+    VkImageMemoryBarrier2 resolveOutputBarrier{};
+    resolveOutputBarrier.sType          = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+    resolveOutputBarrier.srcStageMask   = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    resolveOutputBarrier.srcAccessMask  = 0;
+    resolveOutputBarrier.dstStageMask   = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    resolveOutputBarrier.dstAccessMask  = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    resolveOutputBarrier.oldLayout      = VK_IMAGE_LAYOUT_UNDEFINED;
+    resolveOutputBarrier.newLayout      = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+    resolveOutputBarrier.image          = context.m_swapchainImages[imageIndex];
+    resolveOutputBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    resolveOutputBarrier.subresourceRange.levelCount = 1;
+    resolveOutputBarrier.subresourceRange.layerCount = 1;
 
-    VkImageMemoryBarrier2 colorOutputBarrier{};
-    colorOutputBarrier.sType          = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-    colorOutputBarrier.srcStageMask   = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-    colorOutputBarrier.srcAccessMask  = 0;
-    colorOutputBarrier.dstStageMask   = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-    colorOutputBarrier.dstAccessMask  = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    colorOutputBarrier.oldLayout                    = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorOutputBarrier.newLayout                    = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-    colorOutputBarrier.image                        = context.m_swapchainImages[imageIndex];
-    colorOutputBarrier.subresourceRange.aspectMask  = VK_IMAGE_ASPECT_COLOR_BIT;
-    colorOutputBarrier.subresourceRange.levelCount  = 1;
-    colorOutputBarrier.subresourceRange.layerCount  = 1;
+    VkImageMemoryBarrier2 msaaColorBarrier{};
+    msaaColorBarrier.sType          = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+    msaaColorBarrier.srcStageMask   = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    msaaColorBarrier.srcAccessMask  = 0;
+    msaaColorBarrier.dstStageMask   = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    msaaColorBarrier.dstAccessMask  = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    msaaColorBarrier.oldLayout      = VK_IMAGE_LAYOUT_UNDEFINED;
+    msaaColorBarrier.newLayout      = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+    msaaColorBarrier.image          = context.m_msaaColorImage;
+    msaaColorBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    msaaColorBarrier.subresourceRange.levelCount = 1;
+    msaaColorBarrier.subresourceRange.layerCount = 1;
 
     VkImageMemoryBarrier2 depthOutputBarrier{};
     depthOutputBarrier.sType          = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -84,7 +97,7 @@ namespace n_command
     depthOutputBarrier.subresourceRange.levelCount = 1;
     depthOutputBarrier.subresourceRange.layerCount = 1;
 
-    std::array<VkImageMemoryBarrier2, 2> outputBarriers{ colorOutputBarrier, depthOutputBarrier };
+    std::array<VkImageMemoryBarrier2, 3> outputBarriers{ resolveOutputBarrier, msaaColorBarrier, depthOutputBarrier };
 
     VkDependencyInfo barrierDependencyInfo{};
     barrierDependencyInfo.sType                   = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
@@ -96,12 +109,16 @@ namespace n_command
     clearColor.color = {{0.07, 0.07, 0.07, 1.0}};
 
     VkRenderingAttachmentInfo colorAttachmentInfo{};
-    colorAttachmentInfo.sType       = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-    colorAttachmentInfo.imageView   = context.m_swapchainImageViews[imageIndex];
-    colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-    colorAttachmentInfo.loadOp      = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorAttachmentInfo.storeOp     = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachmentInfo.clearValue  = clearColor;
+    colorAttachmentInfo.sType              = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    colorAttachmentInfo.imageView          = context.m_msaaColorImageView;
+    colorAttachmentInfo.imageLayout        = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+    colorAttachmentInfo.loadOp             = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachmentInfo.storeOp            = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachmentInfo.clearValue         = clearColor;
+    
+    colorAttachmentInfo.resolveMode        = VK_RESOLVE_MODE_AVERAGE_BIT;
+    colorAttachmentInfo.resolveImageView   = context.m_swapchainImageViews[imageIndex];
+    colorAttachmentInfo.resolveImageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
 
     VkRenderingAttachmentInfo depthAttachmentInfo{};
     depthAttachmentInfo.sType       = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;

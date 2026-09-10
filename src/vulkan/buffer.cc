@@ -85,8 +85,8 @@ namespace n_buffer
     barrier.newLayout           = newLayout;
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image               = texture.image;
-    barrier.subresourceRange    = { VK_IMAGE_ASPECT_COLOR_BIT, 0, texture.mipLevels, 0, 1 };
+    barrier.image               = texture.m_image;
+    barrier.subresourceRange    = { VK_IMAGE_ASPECT_COLOR_BIT, 0, texture.m_mipLevels, 0, 1 };
 
     VkPipelineStageFlags srcStage, dstStage;
 

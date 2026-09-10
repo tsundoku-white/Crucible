@@ -23,19 +23,15 @@ namespace n_context {
 
   VkSampleCountFlagBits getMaxUsableSampleCount(Context &context)
   {
-    VkPhysicalDeviceProperties physicalDeviceProperties;
-    vkGetPhysicalDeviceProperties(context.m_physicalDevice, &physicalDeviceProperties);
-
-    VkSampleCountFlags counts = 
-      physicalDeviceProperties.limits.framebufferColorSampleCounts &
-      physicalDeviceProperties.limits.framebufferDepthSampleCounts;
-
-    if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
-    if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
-    if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
-    if (counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
-    if (counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
-    if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
+    if (context.m_msaa > 16 )
+    {
+      std::print("msaa sample count is too high 1x - 16x\n");
+      context.m_msaa = 16;
+    }
+    if (context.m_msaa & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
+    if (context.m_msaa & VK_SAMPLE_COUNT_8_BIT)  { return VK_SAMPLE_COUNT_8_BIT;  }
+    if (context.m_msaa & VK_SAMPLE_COUNT_4_BIT)  { return VK_SAMPLE_COUNT_4_BIT;  }
+    if (context.m_msaa & VK_SAMPLE_COUNT_2_BIT)  { return VK_SAMPLE_COUNT_2_BIT;  }
 
     return VK_SAMPLE_COUNT_1_BIT;
   }
@@ -57,6 +53,18 @@ namespace n_context {
 
   void destroySwapchain(Context &context)
   {
+    if (context.m_msaaColorImageView != VK_NULL_HANDLE)
+    {
+      vkDestroyImageView(context.m_device, context.m_msaaColorImageView, nullptr);
+      context.m_msaaColorImageView = VK_NULL_HANDLE;
+    }
+    if (context.m_msaaColorImage != VK_NULL_HANDLE)
+    {
+      vmaDestroyImage(context.m_allocator, context.m_msaaColorImage, context.m_msaaColorAllocation);
+      context.m_msaaColorImage = VK_NULL_HANDLE;
+      context.m_msaaColorAllocation = VK_NULL_HANDLE;
+    }
+
     if (context.m_depthImageView != VK_NULL_HANDLE)
     {
       vkDestroyImageView(context.m_device, context.m_depthImageView, nullptr);
@@ -142,6 +150,45 @@ namespace n_context {
           "failed to create swapchain image view\n");
     }
 
+    context.m_msaaSamples = getMaxUsableSampleCount(context);
+
+    VkImageCreateInfo msaaColorCreateInfo {};
+    msaaColorCreateInfo.sType          = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    msaaColorCreateInfo.imageType      = VK_IMAGE_TYPE_2D;
+    msaaColorCreateInfo.format         = context.m_swapchainImageFormat; // Must match exactly!
+    msaaColorCreateInfo.extent.width   = context.m_swapchain_extent.width;
+    msaaColorCreateInfo.extent.height  = context.m_swapchain_extent.height;
+    msaaColorCreateInfo.extent.depth   = 1;
+    msaaColorCreateInfo.mipLevels      = 1;
+    msaaColorCreateInfo.arrayLayers    = 1;
+    msaaColorCreateInfo.samples        = context.m_msaaSamples; // E.g., 4x or 8x
+    msaaColorCreateInfo.tiling         = VK_IMAGE_TILING_OPTIMAL;
+    // Marked transient: mobile/laptop GPUs can process this entirely on-chip without hitting VRAM!
+    msaaColorCreateInfo.usage          = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+    msaaColorCreateInfo.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    VmaAllocationCreateInfo msaaAllocCreateInfo{};
+    msaaAllocCreateInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+    msaaAllocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+
+    vkCheck(vmaCreateImage(context.m_allocator, &msaaColorCreateInfo, &msaaAllocCreateInfo,
+          &context.m_msaaColorImage, &context.m_msaaColorAllocation, nullptr), 
+        "failed to create MSAA color image\n");
+
+    VkImageViewCreateInfo msaaViewCreateInfo{};
+    msaaViewCreateInfo.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    msaaViewCreateInfo.image                           = context.m_msaaColorImage;
+    msaaViewCreateInfo.viewType                        = VK_IMAGE_VIEW_TYPE_2D;
+    msaaViewCreateInfo.format                          = context.m_swapchainImageFormat;
+    msaaViewCreateInfo.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    msaaViewCreateInfo.subresourceRange.baseMipLevel   = 0;
+    msaaViewCreateInfo.subresourceRange.levelCount     = 1;
+    msaaViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+    msaaViewCreateInfo.subresourceRange.layerCount     = 1;
+
+    vkCheck(vkCreateImageView(context.m_device, &msaaViewCreateInfo, nullptr, &context.m_msaaColorImageView), 
+        "failed to create MSAA color image view\n");
+
     // depth buffer
     std::vector<VkFormat> depthFormatList 
     {
@@ -176,7 +223,7 @@ namespace n_context {
     depthImageCreateInfo.extent.depth   = 1;
     depthImageCreateInfo.mipLevels      = 1;
     depthImageCreateInfo.arrayLayers    = 1;
-    depthImageCreateInfo.samples        = VK_SAMPLE_COUNT_1_BIT;
+    depthImageCreateInfo.samples        = context.m_msaaSamples;
     depthImageCreateInfo.tiling         = VK_IMAGE_TILING_OPTIMAL;
     depthImageCreateInfo.usage          = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
     depthImageCreateInfo.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;

@@ -94,7 +94,7 @@ namespace n_pipeline
     VkPipelineMultisampleStateCreateInfo multisampling{};
     multisampling.sType                 = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable   = VK_FALSE;
-    multisampling.rasterizationSamples  = VK_SAMPLE_COUNT_1_BIT;
+    multisampling.rasterizationSamples  = context.m_msaaSamples;
 
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
     colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;

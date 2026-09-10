@@ -66,6 +66,7 @@ namespace n_buffer
   void transitionImageLayout(Context &context, Command &command, Texture &texture, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 
   void copyBufferToImage(Context &context, Command &command, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+
   void createVertexBuffer(Buffer &buffer, Command &command, Context &context, std::vector<Vertex> vertices);
   void createIndexBuffer(Buffer &buffer, Command &command, Context &context, std::vector<uint32_t> indices);
 
