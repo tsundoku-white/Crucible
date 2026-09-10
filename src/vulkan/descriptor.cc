@@ -21,6 +21,7 @@ namespace n_descriptor
     info.borderColor        = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
     info.unnormalizedCoordinates  = VK_FALSE;
     info.mipmapMode               = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    info.mipLodBias               = -0.75f;
     info.maxLod                   = VK_LOD_CLAMP_NONE;
     vkCheck(vkCreateSampler(context.m_device, &info, nullptr, &descriptor.m_sampler), 
         "failed to create sampler");

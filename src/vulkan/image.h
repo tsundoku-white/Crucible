@@ -18,4 +18,8 @@ namespace n_image
   void createTexture(Texture &texture, Context &context, Command &command, std::string path);
   VkImageView createImageView(Context &context, VkImage image, VkFormat format);
   void destroyTexture(Texture &texture, Context &context);
+
+  void generateMipmaps(Context &context, Command &command, Texture &texture,
+      VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
+
 }

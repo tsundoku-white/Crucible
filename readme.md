@@ -7,6 +7,7 @@ rendering to the screen in c++.
 Crucible is very inspired by Entt, Bevy and raylib.
 
 ![Screenshot](./docs/images/screenshot.png)
+> Note: runnig at ~2.6k fps on arch linux release build on debug build its ~260fps, with 8k cubes.
 
 ## Features
 - 3D Rendering

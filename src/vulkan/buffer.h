@@ -1,6 +1,8 @@
 #pragma once
 
 #include "src/core/pch.h"
+#include <cstdint>
+#include <src/vulkan/image.h>
 #include <vulkan/vulkan_core.h>
 
 struct Context;
@@ -61,7 +63,7 @@ namespace n_buffer
 
   static void copyBuffer(Context &context, Command &command, VkBuffer src, VkBuffer dst, VkDeviceSize size);
 
-  void transitionImageLayout(Context &context, Command &command, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+  void transitionImageLayout(Context &context, Command &command, Texture &texture, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 
   void copyBufferToImage(Context &context, Command &command, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
   void createVertexBuffer(Buffer &buffer, Command &command, Context &context, std::vector<Vertex> vertices);

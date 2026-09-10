@@ -2,6 +2,7 @@
 
 #include "src/vulkan/context.h"
 #include "src/vulkan/command.h"
+#include <src/vulkan/image.h>
 #include <vulkan/vulkan_core.h>
 
 namespace n_buffer 
@@ -73,7 +74,7 @@ namespace n_buffer
     vkFreeCommandBuffers(context.m_device, command.m_pool, 1, &cmd);
   }
 
-  void transitionImageLayout(Context &context, Command &command, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
+  void transitionImageLayout(Context &context, Command &command, Texture &texture, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
   {
     VkCommandBuffer commandBuffer = n_command::beginSingleTime(command, context);
 
@@ -84,8 +85,8 @@ namespace n_buffer
     barrier.newLayout           = newLayout;
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image               = image;
-    barrier.subresourceRange    = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+    barrier.image               = texture.image;
+    barrier.subresourceRange    = { VK_IMAGE_ASPECT_COLOR_BIT, 0, texture.mipLevels, 0, 1 };
 
     VkPipelineStageFlags srcStage, dstStage;
 
