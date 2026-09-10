@@ -6,6 +6,7 @@
 #include <src/core/pch.h>
 #include <src/ecs/entity.h>
 #include <src/vulkan/descriptor.h>
+#include <src/vulkan/image.h>
 #include "src/ecs/components/transform.h"
 #include "src/ecs/components/camera.h"
 #include "src/ecs/components/model.h"
@@ -34,6 +35,8 @@ namespace n_resource
               model.m_mesh_meta_data.m_vertex_data);
           n_buffer::createIndexBuffer(iResource.indexBuffer, iResource.m_command, context,
               model.m_mesh_meta_data.m_index_data);
+          n_image::createTexture(iResource.m_texture, context, iResource.m_command,
+      TEXTURE_PATH "proto.png");
           iResource.m_isBufferCreated = true;
         }
       }
@@ -57,9 +60,9 @@ namespace n_resource
     n_descriptor::createDescriptorSets(
         iResource.m_descriptor,
         context,
-        iRender.m_pipeline.m_descriptorLayout,
         iResource.uboBuffer,
         iResource.ssboBuffer,
+        iResource.m_texture.view,
         iRender.m_maxFramesInFlight
         );
   } 
@@ -170,6 +173,8 @@ namespace n_resource
     iResource.m_registery = &registery;
 
     // create the command buffer and updating the cache.
+    n_descriptor::createDescriptorSetLayout(iResource.m_descriptor, context);
+    n_pipeline::createPipeline(iResource.m_pipeline, iResource.m_descriptor, context);
     n_command::createCommand(iResource.m_command, context, iRender);
     updateCache(iResource, registery, context, iRender);
 
@@ -243,6 +248,7 @@ namespace n_resource
   {
     // Clear command and descriptor.
     n_command::destroyCommand(iResource.m_command , *iResource.m_context);
+    n_pipeline::destoryPipeline(iResource.m_pipeline, *iResource.m_context);
     n_descriptor::destoryDescriptor(iResource.m_descriptor, *iResource.m_context);
 
     // clear buffers.
@@ -251,6 +257,7 @@ namespace n_resource
     n_buffer::destroyBuffer(iResource.uboBuffer,  *iResource.m_context);
     n_buffer::destroyBuffer(iResource.ssboBuffer, *iResource.m_context);
 
+    n_image::destroyTexture(iResource.m_texture, *iResource.m_context);
     // clear ubo/ssbo.
     iResource.ubos.clear();
     iResource.ssbos.clear();

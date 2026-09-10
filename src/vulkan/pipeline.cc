@@ -5,6 +5,7 @@
 #include <fstream>
 #include <array>
 #include <src/core/pch.h>
+#include <src/vulkan/descriptor.h>
 
 namespace n_pipeline
 {
@@ -38,38 +39,8 @@ namespace n_pipeline
     return shaderModule;
   }
 
-  static void createDescriptorSetLayout(Pipeline &pipeline, Context &context)
+  void createPipeline(Pipeline &pipeline, Descriptor &descriptor, Context &context)
   {
-    // ---- UBO (binding 0) ----
-    VkDescriptorSetLayoutBinding uboLayoutBinding{};
-    uboLayoutBinding.binding         = 0;
-    uboLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uboLayoutBinding.descriptorCount = 1;
-    uboLayoutBinding.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
-
-    // ---- SSBO (binding 1) ----
-    VkDescriptorSetLayoutBinding ssboLayoutBinding{};
-    ssboLayoutBinding.binding         = 1;
-    ssboLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    ssboLayoutBinding.descriptorCount = 1;
-    ssboLayoutBinding.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
-
-    std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, ssboLayoutBinding };
-
-    VkDescriptorSetLayoutCreateInfo layoutInfo{};
-    layoutInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-    layoutInfo.pBindings    = bindings.data();
-
-    if (vkCreateDescriptorSetLayout(context.m_device, &layoutInfo, nullptr, &pipeline.m_descriptorLayout) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create descriptor set layout!");
-    }
-  }
-
-  void createPipeline(Pipeline &pipeline, Context &context)
-  {
-    createDescriptorSetLayout(pipeline, context);
-
     auto vertShaderCode = readFile(SHADER_DIR "shader_vert.spv");
     auto fragShaderCode = readFile(SHADER_DIR "shader_frag.spv");
 
@@ -155,7 +126,7 @@ namespace n_pipeline
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount         = 1;
-    pipelineLayoutInfo.pSetLayouts            = &pipeline.m_descriptorLayout;
+    pipelineLayoutInfo.pSetLayouts            = &descriptor.m_layout;
     pipelineLayoutInfo.pushConstantRangeCount = 1;
     pipelineLayoutInfo.pPushConstantRanges    = &pushConstantRange;
 
@@ -196,8 +167,5 @@ namespace n_pipeline
 
     if (pipeline.m_layout != VK_NULL_HANDLE)
       vkDestroyPipelineLayout(context.m_device, pipeline.m_layout, nullptr);
-
-    if (pipeline.m_descriptorLayout != VK_NULL_HANDLE)
-      vkDestroyDescriptorSetLayout(context.m_device, pipeline.m_descriptorLayout, nullptr);
   }
 }

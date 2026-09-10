@@ -2,6 +2,7 @@
 
 #include "src/vulkan/context.h"
 #include "src/vulkan/command.h"
+#include <vulkan/vulkan_core.h>
 
 namespace n_buffer 
 {
@@ -72,6 +73,59 @@ namespace n_buffer
     vkFreeCommandBuffers(context.m_device, command.m_pool, 1, &cmd);
   }
 
+  void transitionImageLayout(Context &context, Command &command, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
+  {
+    VkCommandBuffer commandBuffer = n_command::beginSingleTime(command, context);
+
+
+    VkImageMemoryBarrier barrier{};
+    barrier.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout           = oldLayout;
+    barrier.newLayout           = newLayout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image               = image;
+    barrier.subresourceRange    = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+
+    VkPipelineStageFlags srcStage, dstStage;
+
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+    {
+      barrier.srcAccessMask = 0;
+      barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+      srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+      dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    {
+      barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+      barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+      srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+      dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    else
+    {
+      throw std::runtime_error("unsupported image layout transition");
+    }
+
+    vkCmdPipelineBarrier(commandBuffer, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+    n_command::endSingleTime(command, context, commandBuffer);
+  }
+
+  
+ void copyBufferToImage(Context &context, Command &command, VkBuffer buffer,
+    VkImage image, uint32_t width, uint32_t height)
+{
+  VkCommandBuffer cmd = n_command::beginSingleTime(command, context);
+
+  VkBufferImageCopy region{};
+  region.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+  region.imageExtent      = { width, height, 1 };
+
+  vkCmdCopyBufferToImage(cmd, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+  n_command::endSingleTime(command, context, cmd);
+}
 
   void createVertexBuffer(Buffer &buffer, Command &command, Context &context, std::vector<Vertex> vertices)
   {

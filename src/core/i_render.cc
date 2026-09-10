@@ -69,7 +69,6 @@ namespace n_render
     iRender.m_context = &context;
     iRender.m_window  = &window;
 
-    n_pipeline::createPipeline(iRender.m_pipeline, *iRender.m_context);
     createSyncObjects(iRender);
     iRender.m_last_frame_time = std::chrono::high_resolution_clock::now();
   }
@@ -118,7 +117,7 @@ namespace n_render
     n_command::recordPrimary(
         iResource.m_command,
         *iRender.m_context,
-        iRender.m_pipeline,
+        iResource.m_pipeline,
         iResource.m_descriptor,
         iResource.vertexBuffer,
         iResource.indexBuffer,
@@ -189,8 +188,6 @@ namespace n_render
 
   void destoryIRender(IRender &iRender)
   {
-    n_pipeline::destoryPipeline(iRender.m_pipeline, *iRender.m_context);
-
     for (auto s : iRender.m_imageAcquiredSemaphores)
       if (s != VK_NULL_HANDLE) vkDestroySemaphore(iRender.m_context->m_device, s, nullptr);
     for (auto s : iRender.m_renderCompleteSemaphores)

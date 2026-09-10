@@ -7,6 +7,7 @@
 #include <src/core/i_render.h>
 #include <src/vulkan/context.h>
 #include <src/vulkan/descriptor.h>
+#include "src/vulkan/image.h"
 
 struct Transform;
 struct Camera;
@@ -31,6 +32,7 @@ struct IResource
   Context    *m_context;
   Registery  *m_registery;
 
+  Pipeline    m_pipeline; 
   Command     m_command;
   Descriptor  m_descriptor;
 
@@ -48,12 +50,13 @@ struct IResource
   Buffer indexBuffer;
   Buffer uboBuffer;
   Buffer ssboBuffer;
+  Texture m_texture;
 
   std::vector<UniformBufferObject       > ubos;
   std::vector<ShaderStorageBufferObject > ssbos;
 
   std::vector<glm::mat4> m_modelMatrices;
-
+  std::vector<int32_t  > m_textures;
 };
 
 namespace n_resource

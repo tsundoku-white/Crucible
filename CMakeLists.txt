@@ -74,6 +74,7 @@ add_executable(Crucible
   src/resources/load_mesh.cc
 
   ## vulkan
+  src/vulkan/image.cc
   src/vulkan/window.cc
   src/vulkan/buffer.cc
   src/vulkan/context.cc

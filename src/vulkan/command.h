@@ -32,4 +32,9 @@ namespace n_command
   void recordPrimary(Command &command, Context &context, Pipeline &pipeline, Descriptor &descriptor,
       Buffer &vertexBuffer, Buffer &indexBuffer, std::vector<Buffer> &shaderDataBuffers,
       uint32_t frameIndex, uint32_t imageIndex, std::vector<DrawInfo> &drawInfos);
+
+  VkCommandBuffer beginSingleTime(Command &command, Context &context);
+  void endSingleTime(Command &command, Context &context, VkCommandBuffer commandBuffer);
+  static void copyBufferToImage(Context &context, Command &command, VkBuffer buffer,
+    VkImage image, uint32_t width, uint32_t height);
 }

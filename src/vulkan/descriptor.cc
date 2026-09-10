@@ -3,21 +3,80 @@
 #include "src/core/i_resource.h"
 #include <array>
 #include <cstdint>
+#include <src/core/pch.h>
 #include <vector>
-#include <vulkan/vulkan_core.h>
+#include "src/vulkan/image.h"
 
 namespace n_descriptor
 {
-  void createDescriptorSets(Descriptor &descriptor, Context &context, VkDescriptorSetLayout layout,
-      Buffer &uboBuffer, Buffer &ssboBuffer, uint32_t frameCount)
+  void createSampler(Descriptor &descriptor, Context &context) 
   {
-    descriptor.m_layout = layout;
+    VkSamplerCreateInfo info{};
+    info.sType              = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    info.magFilter          = VK_FILTER_LINEAR;
+    info.minFilter          = VK_FILTER_LINEAR;
+    info.addressModeU       = info.addressModeV = info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    info.anisotropyEnable   = VK_TRUE;
+    info.maxAnisotropy      = 16.0f;
+    info.borderColor        = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    info.unnormalizedCoordinates  = VK_FALSE;
+    info.mipmapMode               = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    info.maxLod                   = VK_LOD_CLAMP_NONE;
+    vkCheck(vkCreateSampler(context.m_device, &info, nullptr, &descriptor.m_sampler), 
+        "failed to create sampler");
+  }
 
-    std::array<VkDescriptorPoolSize, 2> poolSize;
+   void createDescriptorSetLayout(Descriptor &descriptor, Context &context)
+   {
+        // ---- UBO (binding 0) ----
+    VkDescriptorSetLayoutBinding uboLayoutBinding{};
+    uboLayoutBinding.binding         = 0;
+    uboLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
+
+    // ---- SSBO (binding 1) ----
+    VkDescriptorSetLayoutBinding ssboLayoutBinding{};
+    ssboLayoutBinding.binding         = 1;
+    ssboLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    ssboLayoutBinding.descriptorCount = 1;
+    ssboLayoutBinding.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkDescriptorSetLayoutBinding  samplerLayoutBinding{};
+    samplerLayoutBinding.binding            = 2;
+    samplerLayoutBinding.descriptorCount    = 1;
+    samplerLayoutBinding.descriptorType     = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    samplerLayoutBinding.pImmutableSamplers = nullptr;
+    samplerLayoutBinding.stageFlags         = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    std::array<VkDescriptorSetLayoutBinding, 3> bindings = {
+      uboLayoutBinding,
+      ssboLayoutBinding, 
+      samplerLayoutBinding
+    };
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+    layoutInfo.pBindings    = bindings.data();
+
+    if (vkCreateDescriptorSetLayout(context.m_device, &layoutInfo, nullptr, &descriptor.m_layout) != VK_SUCCESS) {
+      throw std::runtime_error("failed to create descriptor set layout!");
+    }
+   }
+
+  void createDescriptorSets(Descriptor &descriptor, Context &context,
+      Buffer &uboBuffer, Buffer &ssboBuffer, VkImageView &imageView ,uint32_t frameCount)
+  {
+
+    createSampler(descriptor, context);
+    std::array<VkDescriptorPoolSize, 3> poolSize;
     poolSize[0].type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSize[0].descriptorCount = frameCount;
     poolSize[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     poolSize[1].descriptorCount = frameCount;
+    poolSize[2].type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSize[2].descriptorCount = frameCount;
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType          = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -52,9 +111,14 @@ namespace n_descriptor
     ssboBufferInfo.offset = 0;
     ssboBufferInfo.range  = sizeof(ShaderStorageBufferObject);
 
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageView   = imageView;
+    imageInfo.sampler     = descriptor.m_sampler;
+
     for (uint32_t i = 0; i < frameCount; ++i)
     {
-      std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+      std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
 
       // ---- UBO Write ----
       descriptorWrites[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -72,16 +136,32 @@ namespace n_descriptor
       descriptorWrites[1].descriptorCount = 1;
       descriptorWrites[1].pBufferInfo     = &ssboBufferInfo;
 
+      // ---- Sampler Write ----
+      descriptorWrites[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+      descriptorWrites[2].dstSet          = descriptor.m_sets[i];
+      descriptorWrites[2].dstBinding      = 2;
+      descriptorWrites[2].dstArrayElement = 0;
+      descriptorWrites[2].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+      descriptorWrites[2].descriptorCount = 1;
+      descriptorWrites[2].pImageInfo      = &imageInfo;
+
       vkUpdateDescriptorSets(context.m_device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
     }
+
   }
 
   void destoryDescriptor(Descriptor &descriptor, Context &context)
   {
+    if (descriptor.m_sampler != VK_NULL_HANDLE)
+      vkDestroySampler(context.m_device, descriptor.m_sampler, nullptr);
+
     if (descriptor.m_pool != VK_NULL_HANDLE)
       vkDestroyDescriptorPool(context.m_device, descriptor.m_pool, nullptr);
 
     if (!descriptor.m_sets.empty())
       descriptor.m_sets.clear();
+
+    if (descriptor.m_layout != VK_NULL_HANDLE)
+      vkDestroyDescriptorSetLayout(context.m_device, descriptor.m_layout, nullptr);
   }
 }

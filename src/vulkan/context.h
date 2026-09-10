@@ -24,6 +24,9 @@ struct Context
   VkImageView               m_depthImageView        = VK_NULL_HANDLE;
   VmaAllocation             m_depthAllocation       = VK_NULL_HANDLE;
   uint32_t                  m_queueFamily           = 0;
+
+  VkSampleCountFlagBits     m_msaaSamples           = VK_SAMPLE_COUNT_1_BIT;
+
   bool                      m_vsyncEnabled          = false;
 };
 

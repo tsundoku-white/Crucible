@@ -13,7 +13,6 @@ struct IRender
   Context *m_context = nullptr;
   Window  *m_window  = nullptr;
 
-  Pipeline m_pipeline;
   static constexpr uint32_t m_maxFramesInFlight = 2;
 
   double   m_deltaTime = 0.0f;

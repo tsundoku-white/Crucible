@@ -61,13 +61,15 @@ namespace n_buffer
 
   static void copyBuffer(Context &context, Command &command, VkBuffer src, VkBuffer dst, VkDeviceSize size);
 
-  void createVertexBuffer(Buffer &buffer, Command &command, Context &context, std::vector<Vertex> vertices);
+  void transitionImageLayout(Context &context, Command &command, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 
+  void copyBufferToImage(Context &context, Command &command, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+  void createVertexBuffer(Buffer &buffer, Command &command, Context &context, std::vector<Vertex> vertices);
   void createIndexBuffer(Buffer &buffer, Command &command, Context &context, std::vector<uint32_t> indices);
 
-   void destroyBuffer(Buffer &buffer, Context &context);
+  void destroyBuffer(Buffer &buffer, Context &context);
 
-   void createUniformBuffer(Buffer &buffer, Context &context, VkDeviceSize size);
-   void createStorageBuffer(Buffer &buffer, Context &context, VkDeviceSize size);
-   void updateBuffer(Buffer &buffer, const void* data, VkDeviceSize size);
+  void createUniformBuffer(Buffer &buffer, Context &context, VkDeviceSize size);
+  void createStorageBuffer(Buffer &buffer, Context &context, VkDeviceSize size);
+  void updateBuffer(Buffer &buffer, const void* data, VkDeviceSize size);
 }
