@@ -26,8 +26,9 @@ namespace n_resource
 
     for (size_t m = 0; m < data->meshes_count; m++)
     {
-      cgltf_mesh *currentMesh = &data->meshes[m];
 
+      // mesh 
+      cgltf_mesh *currentMesh = &data->meshes[m];
       for (size_t p = 0; p < currentMesh->primitives_count; p++)
       {
         cgltf_primitive *primitive = &currentMesh->primitives[p];

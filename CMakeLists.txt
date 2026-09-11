@@ -13,9 +13,20 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
-find_package(Vulkan REQUIRED)
+set(FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/.cache/dep_pkgs" CACHE PATH "")
+
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
+
+set(VMA_BUILD_DOCUMENTATION OFF CACHE BOOL "" FORCE)
+set(VMA_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
+
+
+find_package(Vulkan REQUIRED COMPONENTS glslc glslangValidator)
 
 ## getting pkgs with cmake 
 include(FetchContent)
@@ -23,6 +34,7 @@ FetchContent_Declare(
   VulkanMemoryAllocator
   GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
   GIT_TAG v3.2.1
+  GIT_SHALLOW TRUE
   SOURCE_DIR ${FETCHCONTENT_BASE_DIR}/VulkanMemoryAllocator
 )
 
@@ -31,6 +43,7 @@ FetchContent_Declare(
   CGLTF
   GIT_REPOSITORY https://github.com/jkuhlmann/cgltf.git
   GIT_TAG v1.15
+  GIT_SHALLOW TRUE
   SOURCE_DIR ${FETCHCONTENT_BASE_DIR}/cgltf
 )
 
@@ -39,6 +52,7 @@ FetchContent_Declare(
   GLM
   GIT_REPOSITORY https://github.com/g-truc/glm.git 
   GIT_TAG 1.0.3
+  GIT_SHALLOW TRUE
   SOURCE_DIR ${FETCHCONTENT_BASE_DIR}/glm
 )
 
@@ -47,6 +61,7 @@ FetchContent_Declare(
   GLFW
   GIT_REPOSITORY https://github.com/glfw/glfw.git 
   GIT_TAG 3.5.1
+  GIT_SHALLOW TRUE
   SOURCE_DIR ${FETCHCONTENT_BASE_DIR}/glfw
 )
 
@@ -55,6 +70,7 @@ FetchContent_Declare(
   STB
   GIT_REPOSITORY https://github.com/nothings/stb.git 
   GIT_TAG master
+  GIT_SHALLOW TRUE
   SOURCE_DIR ${FETCHCONTENT_BASE_DIR}/stb
 )
 
@@ -151,7 +167,21 @@ add_custom_command(
 )
 add_custom_target(shaders DEPENDS ${CMAKE_BINARY_DIR}/shaders/shader_vert.spv ${CMAKE_BINARY_DIR}/shaders/shader_frag.spv)
 
+add_custom_target(clean-deps
+  COMMAND ${CMAKE_COMMAND} -E rm -rf
+    ${FETCHCONTENT_BASE_DIR}/glm-build
+    ${FETCHCONTENT_BASE_DIR}/glm-subbuild
+    ${FETCHCONTENT_BASE_DIR}/glfw-build
+    ${FETCHCONTENT_BASE_DIR}/glfw-subbuild
+    ${FETCHCONTENT_BASE_DIR}/cgltf-build
+    ${FETCHCONTENT_BASE_DIR}/cgltf-subbuild
+    ${FETCHCONTENT_BASE_DIR}/stb-build
+    ${FETCHCONTENT_BASE_DIR}/stb-subbuild
+    ${FETCHCONTENT_BASE_DIR}/vulkanmemoryallocator-build
+    ${FETCHCONTENT_BASE_DIR}/vulkanmemoryallocator-subbuild
+  COMMENT "Removing FetchContent build/subbuild scratch dirs"
+)
+
 ## dep
 add_dependencies(Crucible shaders)
 add_dependencies(Crucible assets)
-

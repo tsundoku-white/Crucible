@@ -30,7 +30,7 @@ namespace n_resource
       {
         if (!iResource.m_isBufferCreated)
         {
-          // vertex/index buffer creation if buffers not created yet. 
+          // vertex/index/texture buffer creation if buffers not created yet. 
           n_buffer::createVertexBuffer(iResource.vertexBuffer, iResource.m_command, context,
               model.m_mesh_meta_data.m_vertex_data);
           n_buffer::createIndexBuffer(iResource.indexBuffer, iResource.m_command, context,
@@ -126,6 +126,7 @@ namespace n_resource
         iResource.m_dirty_projection = false;
       }
 
+      // update view matrix
       iResource.ubos[id].m_viewMatrix = glm::lookAt(
           transform.m_location,
           transform.m_forward + transform.m_location,

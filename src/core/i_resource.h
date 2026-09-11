@@ -13,25 +13,27 @@ struct Transform;
 struct Camera;
 struct Model;
 
+// camera projection and view matrix
 struct alignas(16) UniformBufferObject
 {
-  // camera projection
   glm::mat4 m_projectionMatrix;
   glm::mat4 m_viewMatrix;
 };
 
+// model matrix and instance count
 struct alignas(16) ShaderStorageBufferObject
 {
-  // models
   glm::mat4 m_modelsMatrix = glm::mat4(1.f);
   size_t    m_modelCount   = 0;
 };
 
 struct IResource
 {
+  // copyed variable
   Context    *m_context;
   Registery  *m_registery;
 
+  // owned variable
   Pipeline    m_pipeline; 
   Command     m_command;
   Descriptor  m_descriptor;
@@ -46,15 +48,18 @@ struct IResource
   uint32_t m_total_shared_index_count = 0;
   uint32_t m_modelInstanceCount = 0;
 
+  // buffers
   Buffer vertexBuffer;
   Buffer indexBuffer;
   Buffer uboBuffer;
   Buffer ssboBuffer;
   Texture m_texture;
 
+  // ubos & ssbo arrays
   std::vector<UniformBufferObject       > ubos;
   std::vector<ShaderStorageBufferObject > ssbos;
 
+  // matrix array and textures index
   std::vector<glm::mat4> m_modelMatrices;
   std::vector<int32_t  > m_textures;
 };

@@ -16,6 +16,7 @@ namespace n_render
         iRender.m_context->m_swapchain,
         &imageCount, nullptr);
 
+    // resize container to max frames in flight 
     iRender.m_imageAcquiredSemaphores.resize(IRender::m_maxFramesInFlight);
     iRender.m_fences.resize(IRender::m_maxFramesInFlight);
     iRender.m_renderCompleteSemaphores.resize(imageCount);
@@ -27,23 +28,23 @@ namespace n_render
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-  for (size_t i = 0; i < iRender.m_maxFramesInFlight; i++) {
-    if (vkCreateSemaphore(iRender.m_context->m_device, &semaphoreInfo, nullptr, 
-          &iRender.m_imageAcquiredSemaphores[i]) != VK_SUCCESS ||
-        vkCreateFence(iRender.m_context->m_device, &fenceInfo, nullptr, 
-          &iRender.m_fences[i]) != VK_SUCCESS)
-    {
-      throw std::runtime_error("failed to create synchronization objects");
+    for (size_t i = 0; i < iRender.m_maxFramesInFlight; i++) {
+      if (vkCreateSemaphore(iRender.m_context->m_device, &semaphoreInfo, nullptr, 
+            &iRender.m_imageAcquiredSemaphores[i]) != VK_SUCCESS ||
+          vkCreateFence(iRender.m_context->m_device, &fenceInfo, nullptr, 
+            &iRender.m_fences[i]) != VK_SUCCESS)
+      {
+        throw std::runtime_error("failed to create synchronization objects");
+      }
     }
-  }
 
-  for (size_t i = 0; i < imageCount; i++) {
-    if (vkCreateSemaphore(iRender.m_context->m_device, &semaphoreInfo, nullptr, 
-          &iRender.m_renderCompleteSemaphores[i]) != VK_SUCCESS)
-    {
-      throw std::runtime_error("failed to create synchronization objects");
+    for (size_t i = 0; i < imageCount; i++) {
+      if (vkCreateSemaphore(iRender.m_context->m_device, &semaphoreInfo, nullptr, 
+            &iRender.m_renderCompleteSemaphores[i]) != VK_SUCCESS)
+      {
+        throw std::runtime_error("failed to create synchronization objects");
+      }
     }
-  }
   }
 
   void recreateSwapchain(IRender &iRender, IResource &iResource)
@@ -76,7 +77,7 @@ namespace n_render
   void drawIRender(IRender &iRender, IResource &iResource)
   {
     auto frame_start = std::chrono::high_resolution_clock::now();
-  iRender.m_deltaTime = std::chrono::duration<float>(frame_start - iRender.m_last_frame_time).count();
+    iRender.m_deltaTime = std::chrono::duration<float>(frame_start - iRender.m_last_frame_time).count();
 
     // Wait for previous frame
     vkWaitForFences(iRender.m_context->m_device, 1,
@@ -105,10 +106,10 @@ namespace n_render
     // Record commands
     std::vector<DrawInfo> drawInfos;
     DrawInfo drawInfo{};
-    drawInfo.index_count = iResource.indexBuffer.m_size / sizeof(uint32_t);
+    drawInfo.index_count    = iResource.indexBuffer.m_size / sizeof(uint32_t);
     drawInfo.instance_count = iResource.m_modelInstanceCount;
-    drawInfo.first_index = 0;
-    drawInfo.vertex_offset = 0;
+    drawInfo.first_index    = 0;
+    drawInfo.vertex_offset  = 0;
     drawInfo.first_instance = 0;
     drawInfos.push_back(drawInfo);
 
@@ -137,18 +138,18 @@ namespace n_render
     VkPipelineStageFlags waitStages[] = {
       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
     };
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = waitSemaphores;
-    submitInfo.pWaitDstStageMask = waitStages;
 
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores    = waitSemaphores;
+    submitInfo.pWaitDstStageMask  = waitStages;
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &iResource.m_command.m_buffers[iRender.m_frameIndex];
+    submitInfo.pCommandBuffers    = &iResource.m_command.m_buffers[iRender.m_frameIndex];
 
     VkSemaphore signalSemaphores[] = {
       iRender.m_renderCompleteSemaphores[imageIndex]
     };
     submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = signalSemaphores;
+    submitInfo.pSignalSemaphores    = signalSemaphores;
 
     if (vkQueueSubmit(iRender.m_context->m_queue, 1, &submitInfo, 
           iRender.m_fences[iRender.m_frameIndex]) != VK_SUCCESS) {
@@ -157,14 +158,14 @@ namespace n_render
 
     // Present
     VkPresentInfoKHR presentInfo{};
-    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = signalSemaphores;
+    presentInfo.sType               = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount  = 1;
+    presentInfo.pWaitSemaphores     = signalSemaphores;
 
     VkSwapchainKHR swapchains[] = {iRender.m_context->m_swapchain};
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = swapchains;
-    presentInfo.pImageIndices = &imageIndex;
+    presentInfo.swapchainCount  = 1;
+    presentInfo.pSwapchains     = swapchains;
+    presentInfo.pImageIndices   = &imageIndex;
 
     result = vkQueuePresentKHR(iRender.m_context->m_queue, &presentInfo);
 
@@ -180,7 +181,7 @@ namespace n_render
     g_frameStats.m_frameTimeMs = iRender.m_deltaTime * 1000;
     g_frameStats.m_deltaTime   = iRender.m_deltaTime;
     g_frameStats.m_fps         = 1 / iRender.m_deltaTime;
-    
+
     // Advance frame
     iRender.m_last_frame_time = frame_start;
     iRender.m_frameIndex = (iRender.m_frameIndex + 1) % iRender.m_maxFramesInFlight;

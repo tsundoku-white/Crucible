@@ -4,22 +4,23 @@
 #include <src/vulkan/pipeline.h>
 #include <chrono>
 
+// forward decloration
 struct Context;
 struct Window;
 struct IResource;
 
 struct IRender
 {
+  // copyed varible
   Context *m_context = nullptr;
   Window  *m_window  = nullptr;
 
   static constexpr uint32_t m_maxFramesInFlight = 2;
 
-  double   m_deltaTime = 0.0f;
+  double   m_deltaTime  = 0.0f;
   uint32_t m_frameIndex = 0;
   bool     m_vsync      = false;
 
-  float    m_timer_debug = 0;
   std::vector<VkFence    > m_fences{};
   std::vector<VkSemaphore> m_imageAcquiredSemaphores{};
   std::vector<VkSemaphore> m_renderCompleteSemaphores{};
