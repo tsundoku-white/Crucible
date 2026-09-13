@@ -7,6 +7,7 @@
 #include <src/core/i_render.h>
 #include <src/vulkan/context.h>
 #include <src/vulkan/descriptor.h>
+#include <sys/types.h>
 #include "src/vulkan/image.h"
 
 struct Transform;
@@ -23,9 +24,11 @@ struct alignas(16) UniformBufferObject
 // model matrix and instance count
 struct alignas(16) ShaderStorageBufferObject
 {
-  glm::mat4 m_modelsMatrix = glm::mat4(1.f);
-  size_t    m_modelCount   = 0;
+  glm::mat4 m_modelsMatrix    = glm::mat4(1.f);
+  uint32_t  m_texture_index   = 0;
+  uint32_t  _pad[3];
 };
+static_assert(sizeof(ShaderStorageBufferObject) == 80);
 
 struct IResource
 {
@@ -59,9 +62,10 @@ struct IResource
   std::vector<UniformBufferObject       > ubos;
   std::vector<ShaderStorageBufferObject > ssbos;
 
-  // matrix array and textures index
-  std::vector<glm::mat4> m_modelMatrices;
-  std::vector<int32_t  > m_textures;
+  // arrays for the ssbo "models" and all textures
+  std::vector<ShaderStorageBufferObject> m_instances;
+  std::vector<Texture  > m_textures;
+  std::vector<uint32_t > m_materialTextureIndex;
 };
 
 namespace n_resource

@@ -370,6 +370,7 @@ namespace n_context {
     enabledVk12Features.descriptorBindingVariableDescriptorCount  = VK_TRUE;
     enabledVk12Features.runtimeDescriptorArray  = VK_TRUE;
     enabledVk12Features.bufferDeviceAddress     = VK_TRUE;
+    enabledVk12Features.descriptorBindingPartiallyBound = VK_TRUE;
 
     VkPhysicalDeviceVulkan13Features enabledVk13Features {};
     enabledVk13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;

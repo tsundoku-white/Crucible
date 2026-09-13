@@ -1,6 +1,7 @@
 #pragma once
 
 #include "src/core/pch.h"
+#include <src/vulkan/image.h>
 
 struct Buffer;
 struct Context;
@@ -18,6 +19,6 @@ namespace n_descriptor
 {
   void createDescriptorSetLayout(Descriptor &descriptor, Context &context);
   void createDescriptorSets(Descriptor &descriptor, Context &context,
-      Buffer &uboBuffer, Buffer &ssboBuffer, VkImageView &imageView ,uint32_t frameCount);
+      Buffer &uboBuffer, Buffer &ssboBuffer, std::vector<Texture> textures, uint32_t frameCount);
   void destoryDescriptor(Descriptor &descriptor, Context &context);
 }

@@ -7,6 +7,8 @@
 #include <vector>
 #include "src/vulkan/image.h"
 
+constexpr uint32_t MAX_TEXTURES = 12;
+
 namespace n_descriptor
 {
   void createSampler(Descriptor &descriptor, Context &context) 
@@ -15,7 +17,11 @@ namespace n_descriptor
     info.sType              = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     info.magFilter          = VK_FILTER_LINEAR;
     info.minFilter          = VK_FILTER_LINEAR;
-    info.addressModeU       = info.addressModeV = info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+    info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
     info.anisotropyEnable   = VK_TRUE;
     info.maxAnisotropy      = 16.0f;
     info.borderColor        = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
@@ -45,7 +51,7 @@ namespace n_descriptor
 
     VkDescriptorSetLayoutBinding  samplerLayoutBinding{};
     samplerLayoutBinding.binding            = 2;
-    samplerLayoutBinding.descriptorCount    = 1;
+    samplerLayoutBinding.descriptorCount    = MAX_TEXTURES;
     samplerLayoutBinding.descriptorType     = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     samplerLayoutBinding.pImmutableSamplers = nullptr;
     samplerLayoutBinding.stageFlags         = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -56,8 +62,21 @@ namespace n_descriptor
       samplerLayoutBinding
     };
 
+    std::array<VkDescriptorBindingFlags, 3> bindingFlags = {
+      0, 0,
+      VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT |
+        VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT
+    };
+
+    VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsInfo{};
+    bindingFlagsInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+    bindingFlagsInfo.bindingCount  = static_cast<uint32_t>(bindingFlags.size());
+    bindingFlagsInfo.pBindingFlags = bindingFlags.data();
+
+
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.pNext        = &bindingFlagsInfo;
     layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
     layoutInfo.pBindings    = bindings.data();
 
@@ -67,7 +86,7 @@ namespace n_descriptor
    }
 
   void createDescriptorSets(Descriptor &descriptor, Context &context,
-      Buffer &uboBuffer, Buffer &ssboBuffer, VkImageView &imageView ,uint32_t frameCount)
+      Buffer &uboBuffer, Buffer &ssboBuffer, std::vector<Texture> textures ,uint32_t frameCount)
   {
 
     createSampler(descriptor, context);
@@ -77,7 +96,7 @@ namespace n_descriptor
     poolSize[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     poolSize[1].descriptorCount = frameCount;
     poolSize[2].type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSize[2].descriptorCount = frameCount;
+    poolSize[2].descriptorCount = frameCount * MAX_TEXTURES;
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType          = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -92,8 +111,17 @@ namespace n_descriptor
     std::vector<VkDescriptorSetLayout> layouts(frameCount, descriptor.m_layout);
     descriptor.m_sets.resize(frameCount);
 
+    uint32_t textureCount = static_cast<uint32_t>(textures.size());
+    std::vector<uint32_t> variableCounts(frameCount, textureCount);
+
+    VkDescriptorSetVariableDescriptorCountAllocateInfo variableCountInfo{};
+    variableCountInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
+    variableCountInfo.descriptorSetCount = frameCount;
+    variableCountInfo.pDescriptorCounts  = variableCounts.data();
+
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.pNext              = &variableCountInfo;
     allocInfo.descriptorPool     = descriptor.m_pool;
     allocInfo.descriptorSetCount = frameCount;
     allocInfo.pSetLayouts        = layouts.data();
@@ -112,10 +140,12 @@ namespace n_descriptor
     ssboBufferInfo.offset = 0;
     ssboBufferInfo.range  = sizeof(ShaderStorageBufferObject);
 
-    VkDescriptorImageInfo imageInfo{};
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo.imageView   = imageView;
-    imageInfo.sampler     = descriptor.m_sampler;
+    std::vector<VkDescriptorImageInfo> imageInfos(textureCount);
+    for (uint32_t i = 0; i < textureCount; ++i) {
+      imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+      imageInfos[i].imageView   = textures[i].m_view;
+      imageInfos[i].sampler     = descriptor.m_sampler;
+    }
 
     for (uint32_t i = 0; i < frameCount; ++i)
     {
@@ -143,8 +173,8 @@ namespace n_descriptor
       descriptorWrites[2].dstBinding      = 2;
       descriptorWrites[2].dstArrayElement = 0;
       descriptorWrites[2].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-      descriptorWrites[2].descriptorCount = 1;
-      descriptorWrites[2].pImageInfo      = &imageInfo;
+      descriptorWrites[2].descriptorCount = textureCount;
+      descriptorWrites[2].pImageInfo      = imageInfos.data();
 
       vkUpdateDescriptorSets(context.m_device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
     }

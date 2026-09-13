@@ -33,12 +33,16 @@ find_package(Vulkan REQUIRED COMPONENTS glslc glslangValidator)
 ## instead of being cloned then deleted.
 include(FetchContent)
 
+## don't re-fetch/re-populate deps that are already in the cache.
+## first configure clones them once; every configure after that is a no-op
+## and never touches the network, even after deleting the build dir.
+set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
+
 FetchContent_Declare(
   VulkanMemoryAllocator
   SOURCE_DIR ${FETCHCONTENT_BASE_DIR}/VulkanMemoryAllocator
   DOWNLOAD_COMMAND
-    ${CMAKE_COMMAND} -E rm -rf ${FETCHCONTENT_BASE_DIR}/VulkanMemoryAllocator
-    COMMAND git clone --filter=blob:none --no-checkout --depth 1
+    git clone --filter=blob:none --no-checkout --depth 1
             --branch v3.2.1
             https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
             ${FETCHCONTENT_BASE_DIR}/VulkanMemoryAllocator
@@ -52,8 +56,7 @@ FetchContent_Declare(
   CGLTF
   SOURCE_DIR ${FETCHCONTENT_BASE_DIR}/cgltf
   DOWNLOAD_COMMAND
-    ${CMAKE_COMMAND} -E rm -rf ${FETCHCONTENT_BASE_DIR}/cgltf
-    COMMAND git clone --filter=blob:none --no-checkout --depth 1
+    git clone --filter=blob:none --no-checkout --depth 1
             --branch v1.15 https://github.com/jkuhlmann/cgltf.git
             ${FETCHCONTENT_BASE_DIR}/cgltf
     COMMAND git -C ${FETCHCONTENT_BASE_DIR}/cgltf sparse-checkout init --cone
@@ -64,8 +67,7 @@ FetchContent_Declare(
   GLM
   SOURCE_DIR ${FETCHCONTENT_BASE_DIR}/glm
   DOWNLOAD_COMMAND
-    ${CMAKE_COMMAND} -E rm -rf ${FETCHCONTENT_BASE_DIR}/glm
-    COMMAND git clone --filter=blob:none --no-checkout --depth 1
+    git clone --filter=blob:none --no-checkout --depth 1
             --branch 1.0.3 https://github.com/g-truc/glm.git
             ${FETCHCONTENT_BASE_DIR}/glm
     COMMAND git -C ${FETCHCONTENT_BASE_DIR}/glm sparse-checkout init --cone
@@ -78,8 +80,7 @@ FetchContent_Declare(
   GLFW
   SOURCE_DIR ${FETCHCONTENT_BASE_DIR}/glfw
   DOWNLOAD_COMMAND
-    ${CMAKE_COMMAND} -E rm -rf ${FETCHCONTENT_BASE_DIR}/glfw
-    COMMAND git clone --filter=blob:none --no-checkout --depth 1
+    git clone --filter=blob:none --no-checkout --depth 1
             --branch 3.5.1 https://github.com/glfw/glfw.git
             ${FETCHCONTENT_BASE_DIR}/glfw
     COMMAND git -C ${FETCHCONTENT_BASE_DIR}/glfw sparse-checkout init --cone
@@ -92,8 +93,7 @@ FetchContent_Declare(
   STB
   SOURCE_DIR ${FETCHCONTENT_BASE_DIR}/stb
   DOWNLOAD_COMMAND
-    ${CMAKE_COMMAND} -E rm -rf ${FETCHCONTENT_BASE_DIR}/stb
-    COMMAND git clone --filter=blob:none --no-checkout --depth 1
+    git clone --filter=blob:none --no-checkout --depth 1
             https://github.com/nothings/stb.git
             ${FETCHCONTENT_BASE_DIR}/stb
     COMMAND git -C ${FETCHCONTENT_BASE_DIR}/stb sparse-checkout init --cone
@@ -104,9 +104,9 @@ FetchContent_MakeAvailable(VulkanMemoryAllocator CGLTF GLM GLFW STB)
 
 add_executable(Crucible
   ## main
-  #src/main.cc
+  src/main.cc
 
-  bench/stress_test.cc
+  #bench/stress_test.cc
   ## core 
   src/core/i_render.cc
   src/core/i_resource.cc
@@ -210,20 +210,3 @@ add_custom_target(shaders DEPENDS ${SHADER_OUTPUTS})
 ## dep
 add_dependencies(Crucible shaders)
 add_dependencies(Crucible assets)
-
-## auto-clean FetchContent scratch dirs after a successful build
-add_custom_command(TARGET Crucible POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E rm -rf
-    ${FETCHCONTENT_BASE_DIR}/glm-build
-    ${FETCHCONTENT_BASE_DIR}/glm-subbuild
-    ${FETCHCONTENT_BASE_DIR}/glfw-build
-    ${FETCHCONTENT_BASE_DIR}/glfw-subbuild
-    ${FETCHCONTENT_BASE_DIR}/cgltf-build
-    ${FETCHCONTENT_BASE_DIR}/cgltf-subbuild
-    ${FETCHCONTENT_BASE_DIR}/stb-build
-    ${FETCHCONTENT_BASE_DIR}/stb-subbuild
-    ${FETCHCONTENT_BASE_DIR}/vulkanmemoryallocator-build
-    ${FETCHCONTENT_BASE_DIR}/vulkanmemoryallocator-subbuild
-  COMMENT "Cleaning FetchContent..."
-  VERBATIM
-)
